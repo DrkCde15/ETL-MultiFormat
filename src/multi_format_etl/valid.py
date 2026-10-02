@@ -1,8 +1,8 @@
-"""Schema contracts and quality checks per format.
+"""Contratos de schema e checks de qualidade por formato.
 
-SPEC is the single source of truth: column presence at load time
-(check_columns) and quality checks after cleaning (check_quality)
-both derive from it.
+SPEC é a fonte única de verdade: presença de colunas na carga
+(check_columns) e checks de qualidade após a limpeza (check_quality)
+derivam dela.
 """
 
 from __future__ import annotations
@@ -12,16 +12,25 @@ import pandas as pd
 from multi_format_etl.load import LoadError
 
 SPEC: dict[str, dict[str, list[str]]] = {
+    # csv: Kaggle usa-banking-transactions (fonte real — fetch_kaggle.py)
     "csv": {
-        "required": ["transaction_id", "account_id", "amount", "timestamp"],
+        "required": [
+            "transaction_id",
+            "transaction_date",
+            "transaction_amount",
+            "transaction_status",
+        ],
         "key": ["transaction_id"],
-        "numeric": ["amount"],
-        "temporal": ["timestamp"],
+        "numeric": ["transaction_amount"],
+        "temporal": ["transaction_date"],
     },
+    # json: série BCB SGS (fonte real — fetch_json.py). `data` permanece
+    # string dd/mm/yyyy: parsing livre é ambíguo (dayfirst) e foi adiado
+    # junto com o trabalho de fuso horário (achado A7 da revisão).
     "json": {
-        "required": ["transaction_id", "account_id", "amount"],
-        "key": ["transaction_id"],
-        "numeric": ["amount"],
+        "required": ["data", "valor"],
+        "key": ["data"],
+        "numeric": ["valor"],
         "temporal": [],
     },
     "xml": {
@@ -44,11 +53,11 @@ EXPECTED_COLUMNS: dict[str, list[str]] = {
 
 
 class CheckError(RuntimeError):
-    """Raised when quality checks fail after cleaning."""
+    """Lançado quando os checks de qualidade falham após a limpeza."""
 
 
 def check_columns(df: pd.DataFrame, source_format: str) -> None:
-    """Raise LoadError if expected columns are missing. Unknown formats are skipped."""
+    """Lança LoadError se as colunas esperadas faltarem. Desconhecidos são ignorados."""
     expected = EXPECTED_COLUMNS.get(source_format)
     if expected is None:
         return
@@ -58,10 +67,10 @@ def check_columns(df: pd.DataFrame, source_format: str) -> None:
 
 
 def check_quality(df: pd.DataFrame, source_format: str) -> None:
-    """Null, duplicate-key and type checks on cleaned data.
+    """Checks de nulos, chave duplicada e tipos nos dados limpos.
 
-    Raises CheckError listing every failing check at once.
-    Unknown formats are skipped.
+    Lança CheckError listando todos os checks que falharam de uma vez.
+    Formatos desconhecidos são ignorados.
     """
     spec = SPEC.get(source_format)
     if spec is None:

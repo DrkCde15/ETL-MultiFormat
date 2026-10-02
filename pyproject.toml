@@ -9,6 +9,7 @@ dependencies = [
     "pandas>=2.0",
     "pyarrow>=14.0",
     "python-dotenv>=1.0",
+    "kaggle>=2.2",
 ]
 
 [project.optional-dependencies]

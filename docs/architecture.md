@@ -14,7 +14,10 @@
   obrigatórios e dedup por chave — dirigido por `SPEC`.
 - Duas camadas de saída: `processed/` (padronizado, porta `check_columns`)
   e `curated/` (limpo, porta `check_quality` — só grava se passar).
-- Amostras pequenas e intencionais: JSON com 1 `amount` nulo (removido por
+- Pipeline com fontes reais: `csv` ← Kaggle (5.389 linhas) e `json` ←
+  BCB (série diária) via fetch; `xml`/`logs` ← fixtures. Arquivo real
+  ausente → erro com o comando de fetch correspondente.
+- Amostras pequenas e intencionais: JSON com 1 `valor` nulo (removido por
   `clean`), logs com 1 `failed` (status de negócio legítimo, mantido).
 
 ## Decisões
@@ -25,26 +28,44 @@
 - `SPEC` é a fonte única da verdade: `EXPECTED_COLUMNS` é derivado dele,
   então transformação e checks nunca divergem do contrato.
 
-## Fontes de dados reais (planejado — não implementado)
+## Fontes de dados reais (fetch + ingestão concluídos)
 
 Uma fonte por formato, escolhida conforme a natureza do dado, em vez de
 forçar tudo pelo Kaggle:
 
 | Formato | Fonte escolhida | Justificativa |
 |---|---|---|
-| CSV | Kaggle `pradeepkumar2424/usa-banking-transactions-dataset-2023-2024` (CC0, 5k linhas) | schema legível aderente ao `SPEC` (id, data, amount, status); licença sem atrito |
-| JSON | API pública **BCB SGS** (`api.bcb.gov.br`, sem credencial) | bate com o README ("payloads JSON de API"); exercita fetch + rate limit |
+| CSV | Kaggle `pradeepkumar2424/usa-banking-transactions-dataset-2023-2024` (CC0, 5k linhas) | schema legível (id, data, amount, status); licença sem atrito |
+| JSON | API pública **BCB SGS** (`api.bcb.gov.br`, sem credencial) | bate com o README ("payloads JSON de API"); exercita fetch de API real |
 | LOG | fixture sintética (ou format-bridge CSV → linhas `k=v`) | o formato de log é da própria aplicação — não existe fonte pública equivalente |
 
-Regras quando implementar:
+Fetch (implementado):
 
-- credenciais (ex.: `KAGGLE_USERNAME`/`KAGGLE_KEY`) só em `.env`; apenas
-  placeholders no `.env.example`;
-- dataset completo gitignorado; `scripts/fetch_*.py` com slug + versão
-  fixados; fixtures sintéticas seguem versionadas;
-- testes nunca dependem de rede;
-- Loghub como opção futura só para o capítulo "parser de log de sistema"
-  (licença restrita a uso de pesquisa — não é CC0).
+- `scripts/fetch_json.py [--code N --start dd/mm/aaaa --end dd/mm/aaaa]`
+  → `data/raw/json/bcb_sgs_{code}.json` via **stdlib** (urllib), validado
+  como array não vazio. Sem datas, janela padrão de 90 dias (o BCB rejeita
+  série diária sem janela — HTTP 406). Testado ao vivo.
+- `scripts/fetch_kaggle.py [--slug owner/nome]` → **kaggle-api oficial**
+  (>=2.2): credenciais checadas antes do import (`.env` carregado),
+  `dataset_download_files(..., unzip=True)` em `data/raw/csv/`. Auth:
+  `KAGGLE_USERNAME`+`KAGGLE_KEY` (legacy) ou `KAGGLE_API_TOKEN`, só em
+  `.env`. Limite da 2.x: não expõe download por versão — o slug fixado
+  no script é a âncora de reprodutibilidade.
+- downloads ficam em `data/raw/{csv,json}/` e são gitignorados por
+  padrão (`data/raw/csv/*` + exceção para a fixture); credenciais só
+  em `.env`, nunca em logs; testes nunca dependem de rede.
+
+Ingestão (concluída): `run_load` lê os arquivos reais — `SOURCES` nomeia
+`Banking_Transactions_USA_2023_2024.csv` e `bcb_sgs_1.json` (ausentes →
+erro apontando o fetch); o `SPEC` de `csv` (id/data/valor/status) e de
+`json` (data/valor) foi reescrito para os schemas reais, e as fixtures
+foram adaptadas aos mesmos schemas para manter os testes offline em
+clone novo.
+
+Decisão: `data` (BCB) fica como string `dd/mm/yyyy` — parsing sem formato
+explícito é ambíguo (dayfirst); tratar junto com o achado A7
+(timestamps/fuso). Loghub segue como opção futura só para o capítulo
+"parser de log de sistema" (licença restrita a pesquisa — não é CC0).
 
 ## Futuro (não implementado)
 

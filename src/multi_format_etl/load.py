@@ -1,7 +1,7 @@
-"""Loaders for every supported raw format, in one module.
+"""Carregadores para cada formato bruto suportado, em um módulo só.
 
-Suffix -> (format name, reader) registry: to add a format, write one
-function and register it in FORMAT_BY_SUFFIX.
+Registro sufixo -> (nome do formato, leitor): para adicionar um formato,
+escreva uma função e registre-a em FORMAT_BY_SUFFIX.
 """
 
 from __future__ import annotations
@@ -14,11 +14,11 @@ import pandas as pd
 
 
 class LoadError(RuntimeError):
-    """Raised when a source file cannot be loaded."""
+    """Lançado quando um arquivo de origem não pode ser carregado."""
 
 
 def load_csv(path: Path) -> pd.DataFrame:
-    """Load a CSV file. Raises LoadError on missing/unreadable file."""
+    """Carrega um arquivo CSV. Lança LoadError se o arquivo faltar/for ilegível."""
     if not path.exists():
         raise LoadError(f"CSV file not found: {path}")
     try:
@@ -28,7 +28,7 @@ def load_csv(path: Path) -> pd.DataFrame:
 
 
 def load_json(path: Path) -> pd.DataFrame:
-    """Load a JSON array file (flat or nested-one-level)."""
+    """Carrega um arquivo JSON array (plano ou aninhado um nível)."""
     if not path.exists():
         raise LoadError(f"JSON file not found: {path}")
     try:
@@ -38,7 +38,7 @@ def load_json(path: Path) -> pd.DataFrame:
 
 
 def load_xml(path: Path, record_tag: str = "customer") -> pd.DataFrame:
-    """Parse a simple record-per-element XML file into a DataFrame (stdlib only)."""
+    """Analisa um XML simples (um registro por elemento) em DataFrame (só stdlib)."""
     if not path.exists():
         raise LoadError(f"XML file not found: {path}")
     try:
@@ -56,7 +56,7 @@ def load_xml(path: Path, record_tag: str = "customer") -> pd.DataFrame:
 
 
 def parse_log_line(line: str) -> dict:
-    """Parse one log line into a dict. Raises LoadError on malformed lines."""
+    """Analisa uma linha de log em dict. Lança LoadError em linhas malformadas."""
     parts = line.strip().split("|")
     if len(parts) < 2:
         raise LoadError(f"Malformed log line: {line!r}")
@@ -70,7 +70,7 @@ def parse_log_line(line: str) -> dict:
 
 
 def load_logs(path: Path) -> pd.DataFrame:
-    """Load a transaction log file (pipe-separated, one event per line)."""
+    """Carrega um log de transações (separado por pipe, um evento por linha)."""
     if not path.exists():
         raise LoadError(f"Log file not found: {path}")
     try:
@@ -91,7 +91,7 @@ FORMAT_BY_SUFFIX: dict[str, tuple[str, Callable[[Path], pd.DataFrame]]] = {
 
 
 def load_file(path: Path) -> tuple[str, pd.DataFrame]:
-    """Detect the format by suffix and load. Returns (format_name, dataframe)."""
+    """Detecta o formato pelo sufixo e carrega. Retorna (nome_formato, dataframe)."""
     entry = FORMAT_BY_SUFFIX.get(path.suffix.lower())
     if entry is None:
         supported = ", ".join(sorted(FORMAT_BY_SUFFIX))

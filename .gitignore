@@ -19,6 +19,12 @@ venv/
 data/processed/
 data/curated/
 
+# Downloads de fontes externas (só as fixtures ficam versionadas)
+data/raw/csv/*
+!data/raw/csv/transactions.csv
+data/raw/json/*
+!data/raw/json/transactions.json
+
 # Testes / cobertura
 .pytest_cache/
 .coverage

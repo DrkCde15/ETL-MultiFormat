@@ -1,6 +1,6 @@
-transaction_id,account_id,transaction_type,amount,timestamp,status
-T000001,A00001,deposit,1000.00,2024-06-01T10:00:00,completed
-T000002,A00002,withdrawal,250.50,2024-06-01T11:30:00,completed
-T000003,A00001,payment,89.90,2024-06-02T09:15:00,pending
-T000004,A00003,deposit,500.00,2024-06-02T14:00:00,completed
-T000005,A00002,fee,12.50,2024-06-03T08:00:00,completed
+Transaction_ID,Account_Number,Transaction_Date,Transaction_Amount,Merchant_Name,Transaction_Type,Category,City,Country,Payment_Method,Customer_Age,Customer_Gender,Customer_Occupation,Customer_Income,Account_Balance,Transaction_Status,Fraud_Flag,Discount_Applied,Loyalty_Points_Earned,Transaction_Description
+b7e6d5c4-0667-4ad1-9c80-317fa3b1799d,IUPM04409079772781,2024-06-01 10:00:00,1000.00,Houston Group,Debit,Transport,Phoenix,USA,Online Transfer,55,Others,Quality manager,80466.03,350.28,Success,No,True,304,Fixture row one.
+23b8c1e9-3924-46de-beb1-3b9046685257,BLAT22216107051843,2024-06-01 11:30:00,250.50,Anderson-Phillips,Credit,Grocery,Philadelphia,USA,Debit Card,26,Others,Civil Service fast streamer,145574.25,9797.81,Pending,Yes,False,383,Fixture row two.
+bd9c66b3-ad3c-4d6d-9a3d-1fa7bc8960a9,UTXA55295806601382,2024-06-01 13:45:12,1378.77,Jensen Group,Credit,Shopping,New York,USA,Debit Card,29,Others,"Pilot, airline",33447.18,12399.85,Failed,Yes,False,497,Fixture row three quoted occupation.
+5c4b3a29-1111-4222-8333-444444444444,MERB99887766554433,2024-06-02 09:15:45,89.99,Lee Foods,Credit,Food,Miami,USA,Credit Card,41,Female,Nurse,67200.00,4100.55,Success,No,False,42,Fixture row four.
+9f8e7d6c-5555-4666-8777-888888888888,CAAB12123434565678,2024-06-02 16:05:33,450.00,Garcia Services,Debit,Services,Austin,USA,Online Transfer,33,Male,Software engineer,95000.75,2200.10,Failed,No,True,120,Fixture row five.

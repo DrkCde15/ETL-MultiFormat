@@ -1,6 +1,6 @@
-"""CLI: load every raw format -> processed parquet (standardized, no cleaning yet).
+"""CLI: carrega todo formato bruto -> parquet processado (padronizado, sem limpeza ainda).
 
-Usage:
+Uso:
     python scripts/run_load.py
 """
 
@@ -18,22 +18,34 @@ from multi_format_etl.valid import check_columns, check_quality
 
 logger = setup_logging()
 
+# csv/json vêm das APIs (faça o fetch antes); xml/logs não têm API pública
+# equivalente e ficam nas fixtures sintéticas versionadas.
 SOURCES = [
-    "csv/transactions.csv",
-    "json/transactions.json",
+    "csv/Banking_Transactions_USA_2023_2024.csv",
+    "json/bcb_sgs_1.json",
     "xml/customers.xml",
     "logs/transactions.log",
 ]
 
+FETCH_HINT = {
+    "csv/Banking_Transactions_USA_2023_2024.csv": "python scripts/fetch_kaggle.py",
+    "json/bcb_sgs_1.json": "python scripts/fetch_json.py",
+}
+
 
 def main() -> int:
-    """Load -> processed (standardized) -> curated (cleaned + checked)."""
+    """Carga -> processed (padronizado) -> curated (limpo + verificado)."""
     settings = load_settings()
     settings.ensure_dirs()
     total = 0
     curated_total = 0
     for rel in SOURCES:
         raw_path = settings.raw_dir / rel
+        if not raw_path.exists():
+            hint = FETCH_HINT.get(rel)
+            suffix = f" — run `{hint}` first" if hint else ""
+            logger.error("Missing raw source %s%s", raw_path, suffix)
+            return 1
         try:
             fmt, df = load_file(raw_path)
             processed = standardize(df, fmt, raw_path.name)

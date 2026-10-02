@@ -1,4 +1,4 @@
-"""Centralized configuration (env-overridable, paths relative to project root)."""
+"""Configuração centralizada (sobrescrevível por ambiente; caminhos relativos à raiz do projeto)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 def get_project_root() -> Path:
-    """Return project root (folder containing pyproject.toml)."""
+    """Retorna a raiz do projeto (a pasta que contém pyproject.toml)."""
     current = Path(__file__).resolve()
     for parent in [current.parent, *current.parents]:
         if (parent / "pyproject.toml").exists():
@@ -18,7 +18,7 @@ def get_project_root() -> Path:
 
 
 def setup_logging(level: str | None = None) -> logging.Logger:
-    """Configure root logging once and return a namespaced logger."""
+    """Configura o logging raiz uma única vez e retorna um logger com namespace."""
     resolved = (level or os.getenv("LOG_LEVEL", "INFO")).upper()
     logging.basicConfig(
         level=getattr(logging, resolved, logging.INFO),
@@ -29,8 +29,7 @@ def setup_logging(level: str | None = None) -> logging.Logger:
 
 @dataclass(frozen=True)
 class Settings:
-    """Immutable runtime settings."""
-
+    """Configurações de execução imutáveis."""
     project_root: Path
     raw_dir: Path
     processed_dir: Path
@@ -38,13 +37,13 @@ class Settings:
     log_level: str
 
     def ensure_dirs(self) -> None:
-        """Create output dirs (processed/curated). Raw must already exist."""
+        """Cria os diretórios de saída (processed/curated). O raw deve já existir."""
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         self.curated_dir.mkdir(parents=True, exist_ok=True)
 
 
 def load_settings() -> Settings:
-    """Load settings from environment with local defaults."""
+    """Carrega as configurações do ambiente com padrões locais."""
     try:
         from dotenv import load_dotenv  # type: ignore
     except ImportError:
@@ -58,6 +57,7 @@ def load_settings() -> Settings:
     root = get_project_root()
 
     def _resolve(var: str, default: str) -> Path:
+        """Resolve um caminho de variável de ambiente contra a raiz (absoluto passa direto)."""
         p = Path(os.getenv(var, default))
         return p if p.is_absolute() else root / p
 

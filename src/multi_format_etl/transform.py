@@ -1,8 +1,8 @@
-"""Transformation layer (stage 1: standardization + minimal cleaning).
+"""Camada de transformação (estágio 1: padronização + limpeza mínima).
 
-- standardize(): column names + provenance tags, no business rules.
-- clean(): strip, type coercion, drop rows missing required fields,
-  dedup by key — rules driven by valid.SPEC, aggregation belongs to a future stage.
+- standardize(): nomes de colunas + marcação de proveniência, sem regra de negócio.
+- clean(): strip, conversão de tipos, remoção de linhas sem campos obrigatórios,
+  dedup por chave — regras guiadas por valid.SPEC; agregação fica para um estágio futuro.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from multi_format_etl.valid import SPEC
 
 
 def standardize(df: pd.DataFrame, source_format: str, source_file: str) -> pd.DataFrame:
-    """Normalize column names and tag provenance (no business logic yet)."""
+    """Normaliza nomes de colunas e marca proveniência (sem lógica de negócio ainda)."""
     out = df.copy()
     out.columns = [c.strip().lower() for c in out.columns]
     out["_source_format"] = source_format
@@ -22,8 +22,9 @@ def standardize(df: pd.DataFrame, source_format: str, source_file: str) -> pd.Da
 
 
 def clean(df: pd.DataFrame, source_format: str) -> pd.DataFrame:
-    """Stage-1 cleaning driven by SPEC: strip strings, coerce numeric/temporal
-    columns, drop rows missing required fields, dedup by key. Pure function."""
+    """Limpeza do estágio 1 guiada por SPEC: strip em strings, conversão de
+    colunas numéricas/temporais, remoção de linhas sem obrigatórios, dedup por
+    chave. Função pura."""
     spec = SPEC.get(source_format, {})
     out = df.copy()
     for col in out.select_dtypes(include=["object", "str"]).columns:
