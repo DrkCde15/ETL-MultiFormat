@@ -7,14 +7,19 @@
 Demonstrar capacidade de ingerir e padronizar **diferentes formatos**:
 CSV, JSON, XML e logs semiestruturados de transações.
 
-**Escopo desta versão (v0.1.0 — Etapa 1):** um loader por formato em
-`load.py` + padronização (`standardize`) + limpeza de estágio 1 (`clean`,
-com estatística de descarte) + **camada de data quality** (nulos, chaves,
+**v0.2.0 — Etapa 1 (pipeline) concluída:** um loader por formato em
+`load.py` + padronização (`standardize`) + limpeza (`clean`, com
+estatística de descarte) + **camada de data quality** (nulos, chaves,
 tipos, faixas, enums e frescor, com relatório `quality_report.json`) +
-**camada gold com agregados de negócio** (`aggregate.py`). **CSV e JSON
-vêm de fontes reais** (dataset Kaggle e API do BCB, via `fetch_*.py`);
-XML e logs seguem fixtures (não existem APIs públicas equivalentes).
-Spark continua fora — a gold roda em pandas.
+**camada gold com agregados de negócio** (`aggregate.py`) +
+**disponibilização opcional em Postgres**. **CSV e JSON vêm de fontes
+reais** (dataset Kaggle e API do BCB, via `fetch_*.py`); XML e logs
+seguem fixtures (não existem APIs públicas equivalentes). Spark continua
+fora — a gold roda em pandas.
+
+**Etapa 2 (em aberto) — DataOps:** CI (GitHub Actions com pytest +
+ruff), lockfile de dependências e badge de build — achados A4/A6 do
+`docs/revisao-engenharia-dados.md`.
 
 ## Problema
 
@@ -161,6 +166,8 @@ Tabelas gold geradas:
    entram no pipeline via `fetch_*.py`; fixtures adaptadas aos schemas
    reais p/ testes offline; XML/logs sem fonte API equivalente).
    Desenho em `docs/architecture.md`.
+7. **Etapa 2 — DataOps**: CI (pytest + ruff no GitHub Actions), lockfile
+   (`uv.lock`) e badge de build (achados A4/A6).
 
 ## Licença
 

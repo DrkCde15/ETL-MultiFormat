@@ -1,7 +1,7 @@
 [project]
 name = "multi-format-etl"
-version = "0.1.0"
-description = "ETL/ELT com dados estruturados e não estruturados (CSV, JSON, XML, logs): loaders + padronização mínima, base para Silver/Gold."
+version = "0.2.0"
+description = "ETL/ELT com dados estruturados e não estruturados (CSV, JSON, XML, logs): pipeline com gold, data quality e serving opcional em Postgres."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

@@ -1,6 +1,6 @@
 # Arquitetura — Multi-format ETL
 
-## Etapa 1 (implementada)
+## Etapa 1 — pipeline (implementada)
 
 - Um loader por formato num único módulo (`load.py`), com registro
   suffix → reader (`FORMAT_BY_SUFFIX`) e erro explícito `LoadError`.
@@ -96,6 +96,13 @@ de arquivos (bem como os testes) nunca depende do banco.
 - Testes: unitários de SQL/tipos/identificadores **sem banco** +
   roundtrip de integração com `skip` automático quando não há
   `DATABASE_URL`.
+
+## Etapa 2 — DataOps (em aberto)
+
+CI no GitHub Actions (pytest + ruff, achado A4), lockfile de
+dependências (`uv.lock`, A6) e badge de build. Os testes já são 100%
+offline e o roundtrip de Postgres pula sem `DATABASE_URL` — nada no
+repositório exige segredo para rodar em CI.
 
 ## Futuro (não implementado)
 
