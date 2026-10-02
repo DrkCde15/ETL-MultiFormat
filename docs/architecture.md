@@ -12,8 +12,12 @@
   reportados de uma vez via `CheckError`).
 - `transform.clean()`: strip, coerção de tipos, remoção de linhas sem campos
   obrigatórios e dedup por chave — dirigido por `SPEC`.
-- Duas camadas de saída: `processed/` (padronizado, porta `check_columns`)
-  e `curated/` (limpo, porta `check_quality` — só grava se passar).
+- Três camadas de saída: `processed/` (padronizado, porta `check_columns`),
+  `curated/` (limpo, porta `check_quality` — só grava se passar) e
+  `gold/` (`aggregate.py`, dispatch `AGGREGATORS` por formato):
+  csv → `by_status` + `by_month` (com taxa de fraude), json → série BCB
+  por mês (mín/máx/média), xml → clientes por agência, logs → eventos
+  por status/tipo; formato sem regra cai num resumo genérico.
 - Pipeline com fontes reais: `csv` ← Kaggle (5.389 linhas) e `json` ←
   BCB (série diária) via fetch; `xml`/`logs` ← fixtures. Arquivo real
   ausente → erro com o comando de fetch correspondente.
@@ -22,11 +26,14 @@
 
 ## Decisões
 
-- pandas na etapa 1 (volume pequeno); PySpark entra quando `curated/` exigir.
+- pandas na etapa 1 (volume pequeno); PySpark entra quando a gold exigir.
 - Parquet em `processed/` prepara migração para Delta.
 - XML via stdlib para evitar dependência extra.
 - `SPEC` é a fonte única da verdade: `EXPECTED_COLUMNS` é derivado dele,
   então transformação e checks nunca divergem do contrato.
+- Gold em pandas com um agregador por formato (registro `AGGREGATORS`);
+  a chave `data` do BCB é parseada **só aqui**, com formato explícito
+  `%d/%m/%Y` — sem ambiguidade de dayfirst.
 
 ## Fontes de dados reais (fetch + ingestão concluídos)
 
@@ -69,5 +76,5 @@ explícito é ambíguo (dayfirst); tratar junto com o achado A7
 
 ## Futuro (não implementado)
 
-Agregação em `curated/`, PySpark/Delta quando o volume exigir,
-validação avançada com Great Expectations/Pandera.
+PySpark/Delta sobre a gold quando o volume exigir, validação avançada
+com Great Expectations/Pandera.

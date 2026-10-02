@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from multi_format_etl.aggregate import aggregate
 from multi_format_etl.config import load_settings, setup_logging
 from multi_format_etl.load import load_file
 from multi_format_etl.transform import clean, standardize
@@ -34,11 +35,12 @@ FETCH_HINT = {
 
 
 def main() -> int:
-    """Carga -> processed (padronizado) -> curated (limpo + verificado)."""
+    """Carga -> processed -> curated (limpo + verificado) -> gold (agregados)."""
     settings = load_settings()
     settings.ensure_dirs()
     total = 0
     curated_total = 0
+    gold_total = 0
     for rel in SOURCES:
         raw_path = settings.raw_dir / rel
         if not raw_path.exists():
@@ -68,11 +70,32 @@ def main() -> int:
         curated_out.parent.mkdir(parents=True, exist_ok=True)
         curated.to_parquet(curated_out, index=False)
         logger.info("Curated OK [%s] rows=%d -> %s", fmt, len(curated), curated_out)
-        print(f"  - {fmt:<6} processed={len(processed):<4} curated={len(curated):<4} -> {curated_out}")
+
+        try:
+            gold_tables = aggregate(curated, fmt)
+        except Exception as exc:
+            logger.error("Gold FAILED [%s] %s: %s", rel, raw_path, exc)
+            return 1
+        for table_name, gold_df in gold_tables.items():
+            gold_out = settings.gold_dir / fmt / f"{table_name}.parquet"
+            gold_out.parent.mkdir(parents=True, exist_ok=True)
+            gold_df.to_parquet(gold_out, index=False)
+        logger.info(
+            "Gold OK [%s] tables=%d -> %s", fmt, len(gold_tables), settings.gold_dir / fmt
+        )
+
+        print(
+            f"  - {fmt:<6} processed={len(processed):<4} curated={len(curated):<4} "
+            f"gold={len(gold_tables)} -> {curated_out}"
+        )
         total += len(processed)
         curated_total += len(curated)
+        gold_total += len(gold_tables)
     logger.info(
-        "Load DONE: %d rows processed, %d rows curated", total, curated_total
+        "Load DONE: %d rows processed, %d rows curated, %d gold tables",
+        total,
+        curated_total,
+        gold_total,
     )
     return 0
 

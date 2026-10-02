@@ -18,6 +18,7 @@ venv/
 # Dados gerados (processed/curated são saída local; raw de exemplo é versionado)
 data/processed/
 data/curated/
+data/gold/
 
 # Downloads de fontes externas (só as fixtures ficam versionadas)
 data/raw/csv/*

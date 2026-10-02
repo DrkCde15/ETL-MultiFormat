@@ -9,10 +9,10 @@ CSV, JSON, XML e logs semiestruturados de transações.
 
 **Escopo desta versão (v0.1.0 — Etapa 1):** um loader por formato em
 `load.py` + padronização (`standardize`) + limpeza de estágio 1 (`clean`) +
-checks de nulos/duplicados/tipos. **CSV e JSON vêm de fontes reais**
-(dataset Kaggle e API do BCB, via `fetch_*.py`); XML e logs seguem
-fixtures (não existem APIs públicas equivalentes). Sem agregações e sem
-Spark ainda.
+checks de nulos/duplicados/tipos + **camada gold com agregados de negócio**
+(`aggregate.py`). **CSV e JSON vêm de fontes reais** (dataset Kaggle e API do
+BCB, via `fetch_*.py`); XML e logs seguem fixtures (não existem APIs públicas
+equivalentes). Spark continua fora — a gold roda em pandas.
 
 ## Problema
 
@@ -33,12 +33,14 @@ data/raw/logs/  ← fixture versionada
                                           ↓
                    clean()  +  check_quality()  (nulos/duplicados/tipos)
                                           ↓
-                    data/curated/<fmt>/data.parquet
-                                          ↓ (futuro)
-                                 agregado (Spark/Delta)
+                     data/curated/<fmt>/data.parquet
+                                   ↓
+                  aggregate()  →  data/gold/<fmt>/<tabela>.parquet
+                                   ↓ (futuro)
+                          Spark/Delta sobre a gold
 ```
 
-Futuro: Pandera/Great Expectations, agregações em `curated/`, PySpark/Databricks.
+Futuro: Pandera/Great Expectations, PySpark/Databricks sobre a gold.
 
 ## Fontes de dados
 
@@ -63,8 +65,9 @@ de datasets Kaggle). XML via stdlib (`xml.etree`). Nenhum recurso cloud.
 ```text
 multi-format-etl/
 ├── data/raw/{csv,json,xml,logs}/  # fixtures versionadas; downloads gitignored
-├── data/{processed,curated}/      # saída local (gitignored)
+├── data/{processed,curated,gold}/  # saída local (gitignored)
 ├── src/multi_format_etl/
+│   ├── aggregate.py     # camada gold: agregados por formato
 │   ├── config.py
 │   ├── fetch.py         # BCB SGS (stdlib) + janela de datas
 │   ├── load.py          # registry suffix → reader (csv/json/xml/log)
@@ -74,7 +77,7 @@ multi-format-etl/
 │   ├── fetch_json.py    # baixa série BCB → data/raw/json/ (gitignored)
 │   ├── fetch_kaggle.py  # baixa dataset Kaggle (kaggle-api) → data/raw/csv/
 │   └── run_load.py
-├── tests/               # test_loaders + test_fetch (offline; reais pulam sem fetch)
+├── tests/               # test_loaders/test_fetch/test_aggregate (offline)
 └── docs/
     ├── architecture.md
     └── revisao-engenharia-dados.md
@@ -100,21 +103,31 @@ pytest
 `run_load.py` com os dados reais (exit 0):
 
 ```text
-  - csv    processed=5389 curated=5389 -> data/curated/csv/data.parquet
-  - json   processed=64   curated=64   -> data/curated/json/data.parquet
-  - xml    processed=3    curated=3    -> data/curated/xml/data.parquet
-  - logs   processed=4    curated=4    -> data/curated/logs/data.parquet
-Load DONE: 5460 rows processed, 5460 rows curated
+  - csv    processed=5389 curated=5389 gold=2 -> data/curated/csv/data.parquet
+  - json   processed=64   curated=64   gold=1 -> data/curated/json/data.parquet
+  - xml    processed=3    curated=3    gold=1 -> data/curated/xml/data.parquet
+  - logs   processed=4    curated=4    gold=2 -> data/curated/logs/data.parquet
+Load DONE: 5460 rows processed, 5460 rows curated, 6 gold tables
 ```
 
-`pytest`: 23 testes (fixtures offline + contrato ponta a ponta dos
+`pytest`: 28 testes (fixtures offline + contrato ponta a ponta dos
 arquivos reais, que pulam em clone novo antes do fetch).
+
+Tabelas gold geradas:
+
+| Formato | Tabelas | Conteúdo |
+|---|---|---|
+| csv | `by_status`, `by_month` | transações, total/média de valor, taxa de fraude mensal |
+| json | `by_month` | dias observados, mín/máx/média da série BCB por mês |
+| xml | `by_branch` | clientes por agência |
+| logs | `by_status`, `by_type` | eventos e volume transacionado |
 
 ## Próximas etapas
 
 1. ~~Validação de schema + checks (nulos, duplicados, tipos)~~ (concluído: `valid.py`).
 2. ~~Limpeza e normalização por formato em `transform.py`~~ (concluído: `transform.clean()`).
-3. Curated agregado + Spark/Delta.
+3. Spark/Delta sobre a gold (a camada gold local, em pandas, está
+   concluída — `aggregate.py`).
 4. Contrato por fonte (ex.: JSON aninhado real, XML com namespace).
 5. Validação avançada com Pandera/Great Expectations.
 6. ~~Fontes reais por formato~~ (concluído: CSV←Kaggle e JSON←API BCB já
