@@ -13,8 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from multi_format_etl.config import load_settings, setup_logging
 from multi_format_etl.load import load_file
-from multi_format_etl.transform import standardize
-from multi_format_etl.valid import check_columns
+from multi_format_etl.transform import clean, standardize
+from multi_format_etl.valid import check_columns, check_quality
 
 logger = setup_logging()
 
@@ -27,26 +27,41 @@ SOURCES = [
 
 
 def main() -> int:
-    """Load + standardize + write processed parquet. Returns exit code."""
+    """Load -> processed (standardized) -> curated (cleaned + checked)."""
     settings = load_settings()
     settings.ensure_dirs()
     total = 0
+    curated_total = 0
     for rel in SOURCES:
         raw_path = settings.raw_dir / rel
         try:
             fmt, df = load_file(raw_path)
-            df = standardize(df, fmt, raw_path.name)
-            check_columns(df, fmt)
+            processed = standardize(df, fmt, raw_path.name)
+            check_columns(processed, fmt)
         except Exception as exc:
             logger.error("Load FAILED [%s] %s: %s", rel, raw_path, exc)
             return 1
-        out = settings.processed_dir / fmt / "data.parquet"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(out, index=False)
-        logger.info("Processed OK [%s] rows=%d -> %s", fmt, len(df), out)
-        print(f"  - {fmt:<6} rows={len(df):<4} -> {out}")
-        total += len(df)
-    logger.info("Load DONE: %d rows total", total)
+        processed_out = settings.processed_dir / fmt / "data.parquet"
+        processed_out.parent.mkdir(parents=True, exist_ok=True)
+        processed.to_parquet(processed_out, index=False)
+        logger.info("Processed OK [%s] rows=%d -> %s", fmt, len(processed), processed_out)
+
+        try:
+            curated = clean(processed, fmt)
+            check_quality(curated, fmt)
+        except Exception as exc:
+            logger.error("Clean FAILED [%s] %s: %s", rel, raw_path, exc)
+            return 1
+        curated_out = settings.curated_dir / fmt / "data.parquet"
+        curated_out.parent.mkdir(parents=True, exist_ok=True)
+        curated.to_parquet(curated_out, index=False)
+        logger.info("Curated OK [%s] rows=%d -> %s", fmt, len(curated), curated_out)
+        print(f"  - {fmt:<6} processed={len(processed):<4} curated={len(curated):<4} -> {curated_out}")
+        total += len(processed)
+        curated_total += len(curated)
+    logger.info(
+        "Load DONE: %d rows processed, %d rows curated", total, curated_total
+    )
     return 0
 
 

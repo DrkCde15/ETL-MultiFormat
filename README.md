@@ -7,9 +7,9 @@
 Demonstrar capacidade de ingerir e padronizar **diferentes formatos**:
 CSV, JSON, XML e logs semiestruturados de transações.
 
-**Escopo desta versão (v0.1.0 — Etapa 1):** loaders separados por formato +
-padronização mínima (`standardize`) + amostras pequenas. Sem limpeza completa,
-sem agregações e sem Spark ainda.
+**Escopo desta versão (v0.1.0 — Etapa 1):** um loader por formato em `load.py` +
+padronização (`standardize`) + limpeza de estágio 1 (`clean`) + checks de
+nulos/duplicados/tipos. Sem agregações e sem Spark ainda.
 
 ## Problema
 
@@ -22,12 +22,15 @@ formato e proveniência (`_source_format`, `_source_file`).
 
 ```text
 data/raw/{csv,json,xml,logs}/  →  load.py  →  standardize()  →  data/processed/<fmt>/data.parquet
-                                                                              ↓ (futuro)
-                                                                curated/ (limpo, tipado, agregado)
+                                                                          ↓
+                                                  clean()  +  check_quality()  (nulos/duplicados/tipos)
+                                                                          ↓
+                                                    data/curated/<fmt>/data.parquet
+                                                                          ↓ (futuro)
+                                                               agregado (Spark/Delta)
 ```
 
-Futuro: validação de schema (Pandera/GE), tratamento de nulos, dedup,
-tipagem, PySpark/Databricks, agregações em `curated/`.
+Futuro: Pandera/Great Expectations, agregações em `curated/`, PySpark/Databricks.
 
 ## Tecnologias
 
@@ -43,8 +46,8 @@ multi-format-etl/
 ├── src/multi_format_etl/
 │   ├── config.py
 │   ├── load.py          # registry suffix → reader (csv/json/xml/log)
-│   ├── transform.py     # standardize()
-│   └── valid.py         # EXPECTED_COLUMNS + check_columns
+│   ├── transform.py     # standardize() + clean()
+│   └── valid.py         # SPEC + check_columns + check_quality
 ├── scripts/run_load.py
 ├── tests/test_loaders.py
 └── docs/architecture.md
@@ -65,10 +68,13 @@ pytest
 
 ## Próximas etapas
 
-1. Validação de schema + checks (nulos, duplicados, tipos).
-2. Limpeza e normalização por formato em `transform.py`.
+1. ~~Validação de schema + checks (nulos, duplicados, tipos)~~ (concluído: `valid.py`).
+2. ~~Limpeza e normalização por formato em `transform.py`~~ (concluído: `transform.clean()`).
 3. Curated agregado + Spark/Delta.
 4. Contrato por fonte (ex.: JSON aninhado real, XML com namespace).
+5. Validação avançada com Pandera/Great Expectations.
+6. Fontes reais por formato — CSV←Kaggle (CC0), JSON←API BCB, logs←
+   fixture/format-bridge. Desenho em `docs/architecture.md`.
 
 ## Licença
 

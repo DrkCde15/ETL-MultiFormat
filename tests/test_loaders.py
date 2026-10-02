@@ -9,8 +9,8 @@ import pytest
 
 from multi_format_etl.config import load_settings
 from multi_format_etl.load import LoadError, load_csv, load_file, load_json, load_logs, load_xml
-from multi_format_etl.transform import standardize
-from multi_format_etl.valid import check_columns
+from multi_format_etl.transform import clean, standardize
+from multi_format_etl.valid import CheckError, check_columns, check_quality
 
 
 def _raw() -> Path:
@@ -91,3 +91,58 @@ def test_load_file_unsupported_suffix_raises(tmp_path: Path) -> None:
     path.write_text("x: 1", encoding="utf-8")
     with pytest.raises(LoadError, match="Unsupported format"):
         load_file(path)
+
+
+def test_clean_drops_rows_missing_required() -> None:
+    """The intentional null amount in the JSON fixture is removed by cleaning."""
+    df = standardize(
+        load_json(_raw() / "json" / "transactions.json"), "json", "transactions.json"
+    )
+    assert len(df) == 4
+    out = clean(df, "json")
+    assert len(out) == 3
+    assert out["amount"].notna().all()
+
+
+def test_clean_coerces_types() -> None:
+    """Log amount becomes numeric and timestamp becomes datetime."""
+    df = standardize(load_logs(_raw() / "logs" / "transactions.log"), "logs", "transactions.log")
+    out = clean(df, "logs")
+    assert pd.api.types.is_numeric_dtype(out["amount"])
+    assert pd.api.types.is_datetime64_any_dtype(out["timestamp"])
+
+
+def test_clean_dedupes_by_key() -> None:
+    """Duplicate keys keep the last occurrence."""
+    df = pd.DataFrame(
+        {"transaction_id": ["T1", "T1"], "account_id": ["A1", "A1"], "amount": [1.0, 2.0]}
+    )
+    out = clean(df, "json")
+    assert len(out) == 1
+    assert out["amount"].iloc[0] == 2.0
+
+
+def test_check_quality_passes_on_cleaned_fixtures() -> None:
+    """Every fixture passes null/duplicate/type checks after cleaning."""
+    cases = [
+        ("csv", "csv/transactions.csv", load_csv),
+        ("json", "json/transactions.json", load_json),
+        ("xml", "xml/customers.xml", load_xml),
+        ("logs", "logs/transactions.log", load_logs),
+    ]
+    for fmt, rel, loader in cases:
+        df = clean(standardize(loader(_raw() / rel), fmt, Path(rel).name), fmt)
+        check_quality(df, fmt)
+
+
+def test_check_quality_reports_every_problem() -> None:
+    """Nulls, duplicate keys and wrong types are all reported at once."""
+    df = pd.DataFrame(
+        {
+            "transaction_id": ["T1", "T1"],
+            "account_id": ["A1", None],
+            "amount": ["not-a-number", 2.0],
+        }
+    )
+    with pytest.raises(CheckError, match=r"null.*duplicate.*expected numeric"):
+        check_quality(df, "json")
