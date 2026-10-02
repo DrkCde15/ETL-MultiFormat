@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from multi_format_etl.config import load_settings
-from multi_format_etl.loaders import load_csv, load_json, load_logs, load_xml
-from multi_format_etl.loaders.csv_loader import LoadError
-from multi_format_etl.transformation import standardize
+from multi_format_etl.load import LoadError, load_csv, load_file, load_json, load_logs, load_xml
+from multi_format_etl.transform import standardize
+from multi_format_etl.valid import check_columns
 
 
 def _raw() -> Path:
@@ -57,3 +58,36 @@ def test_standardize_tags_provenance() -> None:
     assert "_source_format" in out.columns
     assert (out["_source_format"] == "csv").all()
     assert all(c == c.lower() for c in out.columns)
+
+
+def test_check_columns_accepts_raw_samples() -> None:
+    """Every raw sample satisfies its expected-columns contract."""
+    check_columns(load_csv(_raw() / "csv" / "transactions.csv"), "csv")
+    check_columns(load_json(_raw() / "json" / "transactions.json"), "json")
+    check_columns(load_xml(_raw() / "xml" / "customers.xml"), "xml")
+    check_columns(load_logs(_raw() / "logs" / "transactions.log"), "logs")
+
+
+def test_check_columns_missing_raises() -> None:
+    """Missing expected columns fail loudly with the gaps listed."""
+    df = pd.DataFrame({"transaction_id": ["T1"]})
+    with pytest.raises(LoadError, match="Missing expected columns"):
+        check_columns(df, "csv")
+
+
+def test_load_file_dispatches_by_suffix() -> None:
+    """load_file picks the reader from the suffix and returns the format name."""
+    fmt, df = load_file(_raw() / "csv" / "transactions.csv")
+    assert fmt == "csv"
+    assert len(df) == 5
+    fmt, df = load_file(_raw() / "logs" / "transactions.log")
+    assert fmt == "logs"
+    assert len(df) == 4
+
+
+def test_load_file_unsupported_suffix_raises(tmp_path: Path) -> None:
+    """Unknown suffix fails loudly and lists the supported formats."""
+    path = tmp_path / "data.yaml"
+    path.write_text("x: 1", encoding="utf-8")
+    with pytest.raises(LoadError, match="Unsupported format"):
+        load_file(path)

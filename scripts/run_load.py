@@ -12,16 +12,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from multi_format_etl.config import load_settings, setup_logging
-from multi_format_etl.loaders import load_csv, load_json, load_logs, load_xml
-from multi_format_etl.transformation import standardize
+from multi_format_etl.load import load_file
+from multi_format_etl.transform import standardize
+from multi_format_etl.valid import check_columns
 
 logger = setup_logging()
 
 SOURCES = [
-    ("csv", "csv/transactions.csv", load_csv),
-    ("json", "json/transactions.json", load_json),
-    ("xml", "xml/customers.xml", load_xml),
-    ("logs", "logs/transactions.log", load_logs),
+    "csv/transactions.csv",
+    "json/transactions.json",
+    "xml/customers.xml",
+    "logs/transactions.log",
 ]
 
 
@@ -30,12 +31,14 @@ def main() -> int:
     settings = load_settings()
     settings.ensure_dirs()
     total = 0
-    for fmt, rel, loader in SOURCES:
+    for rel in SOURCES:
         raw_path = settings.raw_dir / rel
         try:
-            df = standardize(loader(raw_path), fmt, raw_path.name)
+            fmt, df = load_file(raw_path)
+            df = standardize(df, fmt, raw_path.name)
+            check_columns(df, fmt)
         except Exception as exc:
-            logger.error("Load FAILED [%s] %s: %s", fmt, raw_path, exc)
+            logger.error("Load FAILED [%s] %s: %s", rel, raw_path, exc)
             return 1
         out = settings.processed_dir / fmt / "data.parquet"
         out.parent.mkdir(parents=True, exist_ok=True)

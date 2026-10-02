@@ -21,7 +21,7 @@ formato e proveniência (`_source_format`, `_source_file`).
 ## Arquitetura
 
 ```text
-data/raw/{csv,json,xml,logs}/  →  loaders/  →  standardize()  →  data/processed/<fmt>/data.parquet
+data/raw/{csv,json,xml,logs}/  →  load.py  →  standardize()  →  data/processed/<fmt>/data.parquet
                                                                               ↓ (futuro)
                                                                 curated/ (limpo, tipado, agregado)
 ```
@@ -42,9 +42,9 @@ multi-format-etl/
 ├── data/{processed,curated}/      # saída local (gitignored)
 ├── src/multi_format_etl/
 │   ├── config.py
-│   ├── loaders/{csv_loader,json_loader,xml_loader,log_loader}.py
-│   ├── transformation/__init__.py # standardize()
-│   └── validation/__init__.py     # EXPECTED_COLUMNS (presença)
+│   ├── load.py          # registry suffix → reader (csv/json/xml/log)
+│   ├── transform.py     # standardize()
+│   └── valid.py         # EXPECTED_COLUMNS + check_columns
 ├── scripts/run_load.py
 ├── tests/test_loaders.py
 └── docs/architecture.md
@@ -66,7 +66,7 @@ pytest
 ## Próximas etapas
 
 1. Validação de schema + checks (nulos, duplicados, tipos).
-2. Limpeza e normalização por formato em `transformation/`.
+2. Limpeza e normalização por formato em `transform.py`.
 3. Curated agregado + Spark/Delta.
 4. Contrato por fonte (ex.: JSON aninhado real, XML com namespace).
 
