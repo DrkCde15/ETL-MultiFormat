@@ -16,7 +16,8 @@ venv/
 .env
 
 # Dados gerados (processed/curated são saída local; raw de exemplo é versionado)
-data/
+data/processed/
+data/curated/
 
 # Testes / cobertura
 .pytest_cache/
@@ -34,7 +35,7 @@ htmlcov/
 *.swp
 .DS_Store
 
-# Logs e temporários
-*.log
-logs/
-tmp/
+# Logs e temporários (na raiz do projeto; não afeta data/raw/logs/)
+/*.log
+/logs/
+/tmp/

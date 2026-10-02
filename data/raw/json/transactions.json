@@ -1,0 +1,6 @@
+[
+  {"transaction_id": "T000001", "account_id": "A00001", "amount": 1000.0, "currency": "BRL", "channel": "api"},
+  {"transaction_id": "T000002", "account_id": "A00002", "amount": 250.5, "currency": "BRL", "channel": "mobile"},
+  {"transaction_id": "T000006", "account_id": "A00004", "amount": 320.0, "currency": "BRL", "channel": "web"},
+  {"transaction_id": "T000007", "account_id": "A00001", "amount": null, "currency": "BRL", "channel": "api"}
+]

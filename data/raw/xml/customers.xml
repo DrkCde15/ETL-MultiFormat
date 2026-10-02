@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Legacy banking extract (fictitious customers) -->
+<customers>
+  <customer>
+    <customer_id>C0001</customer_id>
+    <full_name>Ana Silva</full_name>
+    <branch_id>B001</branch_id>
+  </customer>
+  <customer>
+    <customer_id>C0002</customer_id>
+    <full_name>Bruno Souza</full_name>
+    <branch_id>B002</branch_id>
+  </customer>
+  <customer>
+    <customer_id>C0003</customer_id>
+    <full_name>Carla Oliveira</full_name>
+    <branch_id>B001</branch_id>
+  </customer>
+</customers>

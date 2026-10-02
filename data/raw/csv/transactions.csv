@@ -1,0 +1,6 @@
+transaction_id,account_id,transaction_type,amount,timestamp,status
+T000001,A00001,deposit,1000.00,2024-06-01T10:00:00,completed
+T000002,A00002,withdrawal,250.50,2024-06-01T11:30:00,completed
+T000003,A00001,payment,89.90,2024-06-02T09:15:00,pending
+T000004,A00003,deposit,500.00,2024-06-02T14:00:00,completed
+T000005,A00002,fee,12.50,2024-06-03T08:00:00,completed
