@@ -1,5 +1,7 @@
 # ETL/ELT com Dados Estruturados e Não Estruturados
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ## Objetivo
 
 Demonstrar capacidade de ingerir e padronizar **diferentes formatos**:
@@ -67,3 +69,7 @@ pytest
 2. Limpeza e normalização por formato em `transformation/`.
 3. Curated agregado + Spark/Delta.
 4. Contrato por fonte (ex.: JSON aninhado real, XML com namespace).
+
+## Licença
+
+Distribuído sob a licença MIT — veja [`LICENSE`](LICENSE).
