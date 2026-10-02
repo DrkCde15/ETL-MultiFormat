@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+*.pem
+*.key
+.pytest_cache/
+
+# Segredos — NUNCA versionar
+.env
+
+# Dados gerados (processed/curated são saída local; raw de exemplo é versionado)
+data/
+
+# Testes / cobertura
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Jupyter / Databricks
+.ipynb_checkpoints/
+.databricks/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs e temporários
+*.log
+logs/
+tmp/
