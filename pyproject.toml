@@ -15,7 +15,13 @@ dependencies = [
 
 [project.optional-dependencies]
 spark = ["pyspark>=3.5"]
-dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "matplotlib>=3.8",
+    "nbclient>=0.10",
+    "ipykernel>=6.29",
+]
 
 [build-system]
 requires = ["setuptools>=77"]

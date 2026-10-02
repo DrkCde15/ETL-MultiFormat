@@ -91,6 +91,8 @@ multi-format-etl/
 │   ├── fetch_kaggle.py  # baixa dataset Kaggle (kaggle-api) → data/raw/csv/
 │   ├── load_postgres.py # gold → Postgres (só com DATABASE_URL)
 │   └── run_load.py
+├── notebooks/
+│   └── 01_analise_exploratoria.ipynb  # EDA das 4 fontes + quality/gold
 ├── tests/               # loaders/fetch/gold/quality/db (offline)
 └── docs/
     ├── architecture.md
