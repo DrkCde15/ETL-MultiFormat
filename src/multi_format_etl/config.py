@@ -35,13 +35,15 @@ class Settings:
     processed_dir: Path
     curated_dir: Path
     gold_dir: Path
+    quality_dir: Path
     log_level: str
 
     def ensure_dirs(self) -> None:
-        """Cria os diretórios de saída (processed/curated/gold). O raw deve já existir."""
+        """Cria os diretórios de saída (processed/curated/gold/quality)."""
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         self.curated_dir.mkdir(parents=True, exist_ok=True)
         self.gold_dir.mkdir(parents=True, exist_ok=True)
+        self.quality_dir.mkdir(parents=True, exist_ok=True)
 
 
 def load_settings() -> Settings:
@@ -69,5 +71,6 @@ def load_settings() -> Settings:
         processed_dir=_resolve("PROCESSED_DATA_DIR", "data/processed"),
         curated_dir=_resolve("CURATED_DATA_DIR", "data/curated"),
         gold_dir=_resolve("GOLD_DATA_DIR", "data/gold"),
+        quality_dir=_resolve("QUALITY_DATA_DIR", "data/quality"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )

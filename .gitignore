@@ -19,6 +19,7 @@ venv/
 data/processed/
 data/curated/
 data/gold/
+data/quality/
 
 # Downloads de fontes externas (só as fixtures ficam versionadas)
 data/raw/csv/*
