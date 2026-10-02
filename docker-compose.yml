@@ -1,0 +1,23 @@
+# Banco local para a camada opcional de disponibilização (gold → Postgres).
+# Uso: podman compose up -d && export DATABASE_URL=postgresql://etl:etl@localhost:5432/multi_format_etl
+# (docker compose funciona igual — o arquivo é padrão OCI/compose)
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: multi-format-etl-db
+    environment:
+      POSTGRES_USER: etl
+      POSTGRES_PASSWORD: etl
+      POSTGRES_DB: multi_format_etl
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U etl -d multi_format_etl"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

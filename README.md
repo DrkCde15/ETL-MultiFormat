@@ -8,11 +8,13 @@ Demonstrar capacidade de ingerir e padronizar **diferentes formatos**:
 CSV, JSON, XML e logs semiestruturados de transações.
 
 **Escopo desta versão (v0.1.0 — Etapa 1):** um loader por formato em
-`load.py` + padronização (`standardize`) + limpeza de estágio 1 (`clean`) +
-checks de nulos/duplicados/tipos + **camada gold com agregados de negócio**
-(`aggregate.py`). **CSV e JSON vêm de fontes reais** (dataset Kaggle e API do
-BCB, via `fetch_*.py`); XML e logs seguem fixtures (não existem APIs públicas
-equivalentes). Spark continua fora — a gold roda em pandas.
+`load.py` + padronização (`standardize`) + limpeza de estágio 1 (`clean`,
+com estatística de descarte) + **camada de data quality** (nulos, chaves,
+tipos, faixas, enums e frescor, com relatório `quality_report.json`) +
+**camada gold com agregados de negócio** (`aggregate.py`). **CSV e JSON
+vêm de fontes reais** (dataset Kaggle e API do BCB, via `fetch_*.py`);
+XML e logs seguem fixtures (não existem APIs públicas equivalentes).
+Spark continua fora — a gold roda em pandas.
 
 ## Problema
 
@@ -31,13 +33,16 @@ data/raw/logs/  ← fixture versionada
         ↓
      load.py  →  standardize()  →  data/processed/<fmt>/data.parquet
                                           ↓
-                   clean()  +  check_quality()  (nulos/duplicados/tipos)
-                                          ↓
-                     data/curated/<fmt>/data.parquet
+                   clean()  +  check_quality()  (nulos, chave, tipos,
+                                          ↓        faixa, enum, frescor)
+                    data/curated/<fmt>/data.parquet
                                    ↓
                   aggregate()  →  data/gold/<fmt>/<tabela>.parquet
                                    ↓ (futuro)
                           Spark/Delta sobre a gold
+
+  + data/quality/quality_report.json  (status, checks executados,
+    descartes do clean e totais — gravado a cada execução)
 ```
 
 Futuro: Pandera/Great Expectations, PySpark/Databricks sobre a gold.
@@ -58,26 +63,30 @@ clone novo (os 2 testes dos arquivos reais pulam até o fetch rodar).
 ## Tecnologias
 
 Python 3.10+, pandas + pyarrow, python-dotenv, pytest, kaggle-api (fetch
-de datasets Kaggle). XML via stdlib (`xml.etree`). Nenhum recurso cloud.
+de datasets Kaggle), psycopg (disponibilização opcional em PostgreSQL
+local via Docker). XML via stdlib (`xml.etree`). Nenhum recurso cloud.
 
 ## Estrutura do projeto
 
 ```text
 multi-format-etl/
 ├── data/raw/{csv,json,xml,logs}/  # fixtures versionadas; downloads gitignored
-├── data/{processed,curated,gold}/  # saída local (gitignored)
+├── docker-compose.yml   # Postgres 16 local (podman compose / docker compose)
+├── data/{processed,curated,gold,quality}/  # saída local (gitignored)
 ├── src/multi_format_etl/
 │   ├── aggregate.py     # camada gold: agregados por formato
 │   ├── config.py
+│   ├── db.py            # gold → Postgres (opcional, DATABASE_URL)
 │   ├── fetch.py         # BCB SGS (stdlib) + janela de datas
 │   ├── load.py          # registry suffix → reader (csv/json/xml/log)
-│   ├── transform.py     # standardize() + clean()
-│   └── valid.py         # SPEC + check_columns + check_quality
+│   ├── transform.py     # standardize() + clean() (com estatísticas)
+│   └── valid.py         # SPEC + checks + relatório de qualidade
 ├── scripts/
 │   ├── fetch_json.py    # baixa série BCB → data/raw/json/ (gitignored)
 │   ├── fetch_kaggle.py  # baixa dataset Kaggle (kaggle-api) → data/raw/csv/
+│   ├── load_postgres.py # gold → Postgres (só com DATABASE_URL)
 │   └── run_load.py
-├── tests/               # test_loaders/test_fetch/test_aggregate (offline)
+├── tests/               # loaders/fetch/gold/quality/db (offline)
 └── docs/
     ├── architecture.md
     └── revisao-engenharia-dados.md
@@ -96,6 +105,11 @@ python scripts/fetch_json.py    # 1x: baixa série BCB → data/raw/json/
 python scripts/fetch_kaggle.py  # 1x: baixa dataset Kaggle → data/raw/csv/
 python scripts/run_load.py
 pytest
+
+# opcional: disponibilização das tabelas gold em Postgres local
+podman compose up -d   # (ou: docker compose up -d)
+export DATABASE_URL=postgresql://etl:etl@localhost:5432/multi_format_etl
+python scripts/load_postgres.py   # sem DATABASE_URL: avisa e sai com 0
 ```
 
 ## Resultado
@@ -110,8 +124,20 @@ pytest
 Load DONE: 5460 rows processed, 5460 rows curated, 6 gold tables
 ```
 
-`pytest`: 28 testes (fixtures offline + contrato ponta a ponta dos
+`pytest`: 36 testes (fixtures offline + contrato ponta a ponta dos
 arquivos reais, que pulam em clone novo antes do fetch).
+
+A cada execução o `run_load` grava `data/quality/quality_report.json`
+com o **status da carga, os checks executados por formato**
+(ex.: `range:transaction_amount`, `enum:transaction_status`,
+`freshness:transaction_date`), **o que o `clean` descartou** (nulos por
+coluna, chaves duplicadas) e os totais — evidência auditável da qualidade.
+
+**Postgres opcional**: com `DATABASE_URL` apontando para o
+`podman compose up -d`, `scripts/load_postgres.py` replica as 6 tabelas
+gold no schema `gold` (`gold.csv_by_status`, `gold.json_by_month`, …)
+em full refresh (TRUNCATE + INSERT), com DDL derivado dos dtypes. Sem o
+DSN, o script só avisa — o pipeline de arquivos nunca depende do banco.
 
 Tabelas gold geradas:
 
@@ -129,7 +155,8 @@ Tabelas gold geradas:
 3. Spark/Delta sobre a gold (a camada gold local, em pandas, está
    concluída — `aggregate.py`).
 4. Contrato por fonte (ex.: JSON aninhado real, XML com namespace).
-5. Validação avançada com Pandera/Great Expectations.
+5. Validação avançada com Pandera/Great Expectations (as regras de
+   negócio e o relatório de qualidade já estão no núcleo, sem dependência).
 6. ~~Fontes reais por formato~~ (concluído: CSV←Kaggle e JSON←API BCB já
    entram no pipeline via `fetch_*.py`; fixtures adaptadas aos schemas
    reais p/ testes offline; XML/logs sem fonte API equivalente).

@@ -8,10 +8,15 @@
   de negócio aqui de propósito.
 - `valid.py`: contrato único por formato (`SPEC`) com presença
   (`check_columns`, aplicada na ingestão) e qualidade pós-limpeza
-  (`check_quality`: nulos, chaves duplicadas, tipos — todos os problemas
-  reportados de uma vez via `CheckError`).
+  (`check_quality`: nulos, chaves duplicadas, tipos, **faixas** (`ranges`),
+  **valores permitidos** (`enums`) e **frescor** — todos os problemas
+  reportados de uma vez via `CheckError`; retorna os checks executados).
 - `transform.clean()`: strip, coerção de tipos, remoção de linhas sem campos
-  obrigatórios e dedup por chave — dirigido por `SPEC`.
+  obrigatórios e dedup por chave — dirigido por `SPEC`; `clean_with_stats()`
+  devolve também **o que foi descartado** (nulos por coluna, duplicatas).
+- Relatório de qualidade: `run_load` grava `data/quality/quality_report.json`
+  a cada execução (status, checks executados por formato, descartes do
+  clean, totais) — evidência em vez de "passou silenciosamente".
 - Três camadas de saída: `processed/` (padronizado, porta `check_columns`),
   `curated/` (limpo, porta `check_quality` — só grava se passar) e
   `gold/` (`aggregate.py`, dispatch `AGGREGATORS` por formato):
@@ -34,6 +39,9 @@
 - Gold em pandas com um agregador por formato (registro `AGGREGATORS`);
   a chave `data` do BCB é parseada **só aqui**, com formato explícito
   `%d/%m/%Y` — sem ambiguidade de dayfirst.
+- Regras de negócio (faixa/enum/frescor) vivem no **mesmo `SPEC`** dos
+  contratos — uma fonte só; Pandera/Great Expectations ficam para o
+  item 5 do roadmap (o núcleo não depende deles).
 
 ## Fontes de dados reais (fetch + ingestão concluídos)
 
@@ -73,6 +81,21 @@ Decisão: `data` (BCB) fica como string `dd/mm/yyyy` — parsing sem formato
 explícito é ambíguo (dayfirst); tratar junto com o achado A7
 (timestamps/fuso). Loghub segue como opção futura só para o capítulo
 "parser de log de sistema" (licença restrita a pesquisa — não é CC0).
+
+## Disponibilização (opcional, implementada)
+
+`scripts/load_postgres.py` replica `data/gold/` no **PostgreSQL local**
+(`podman compose up -d`, imagem `postgres:16-alpine`) **só quando
+`DATABASE_URL` existe** — sem o DSN ele avisa e sai com 0, e o pipeline
+de arquivos (bem como os testes) nunca depende do banco.
+
+- Carga em **full refresh** (TRUNCATE + INSERT) nas tabelas
+  `gold.<fmt>_<tabela>`; DDL derivado dos dtypes pandas (`db.py`).
+- Identificadores validados por regex (snake_case) antes de interpolar —
+  sem SQL injetável vindo dos nomes de coluna.
+- Testes: unitários de SQL/tipos/identificadores **sem banco** +
+  roundtrip de integração com `skip` automático quando não há
+  `DATABASE_URL`.
 
 ## Futuro (não implementado)
 
