@@ -88,9 +88,7 @@ def _run(settings: Settings, report: dict) -> int:
             gold_out = settings.gold_dir / fmt / f"{table_name}.parquet"
             gold_out.parent.mkdir(parents=True, exist_ok=True)
             gold_df.to_parquet(gold_out, index=False)
-        logger.info(
-            "Gold OK [%s] tables=%d -> %s", fmt, len(gold_tables), settings.gold_dir / fmt
-        )
+        logger.info("Gold OK [%s] tables=%d -> %s", fmt, len(gold_tables), settings.gold_dir / fmt)
 
         print(
             f"  - {fmt:<6} processed={len(processed):<4} curated={len(curated):<4} "

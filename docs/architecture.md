@@ -97,12 +97,22 @@ de arquivos (bem como os testes) nunca depende do banco.
   roundtrip de integração com `skip` automático quando não há
   `DATABASE_URL`.
 
-## Etapa 2 — DataOps (em aberto)
+## Etapa 2 — DataOps (implementada)
 
-CI no GitHub Actions (pytest + ruff, achado A4), lockfile de
-dependências (`uv.lock`, A6) e badge de build. Os testes já são 100%
-offline e o roundtrip de Postgres pula sem `DATABASE_URL` — nada no
-repositório exige segredo para rodar em CI.
+- **CI** (`.github/workflows/ci.yml`): em push/PR para `main`, roda
+  `uv sync --extra dev --frozen` (lockfile), `ruff check`,
+  `ruff format --check` e `pytest --cov` com **serviço Postgres 16**
+  efêmero — o roundtrip `gold → Postgres → SELECT` roda completo no CI
+  sem segredo algum (credenciais de teste no workflow).
+- **Lockfile**: `uv.lock` (85 pacotes) com `requires-python >=3.11`
+  (piso exigido pelo `kaggle>=2.2`); `.python-version` fixa 3.12.
+- **Lint**: `ruff` (regras E/F/I/UP/B, linha 100) sobre `src/`,
+  `scripts/`, `tests/`; `notebooks/` fica de fora (células
+  exploratórias).
+- **A5**: `load_settings` avisa quando `.env` existe mas `python-dotenv`
+  não está instalado; `SYNTHETIC_SEED` removido do `.env.example`
+  (nunca teve uso no código).
+- **Badge**: status do CI no topo do README.
 
 ## Futuro (não implementado)
 

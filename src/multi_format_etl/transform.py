@@ -21,9 +21,7 @@ def standardize(df: pd.DataFrame, source_format: str, source_file: str) -> pd.Da
     return out
 
 
-def clean_with_stats(
-    df: pd.DataFrame, source_format: str
-) -> tuple[pd.DataFrame, dict]:
+def clean_with_stats(df: pd.DataFrame, source_format: str) -> tuple[pd.DataFrame, dict]:
     """Limpeza do estágio 1 guiada por SPEC: strip em strings, conversão de
     colunas numéricas/temporais, remoção de linhas sem obrigatórios, dedup por
     chave. Função pura; retorna (df_limpo, estatísticas de descarte)."""

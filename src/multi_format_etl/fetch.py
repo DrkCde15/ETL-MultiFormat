@@ -42,9 +42,7 @@ def resolve_window(start: str | None, end: str | None) -> tuple[str, str]:
     resolvido. Lança FetchError em datas inválidas ou janela invertida.
     """
     try:
-        end_date = (
-            datetime.strptime(end, "%d/%m/%Y").date() if end else date.today()
-        )
+        end_date = datetime.strptime(end, "%d/%m/%Y").date() if end else date.today()
         start_date = (
             datetime.strptime(start, "%d/%m/%Y").date()
             if start
@@ -53,9 +51,7 @@ def resolve_window(start: str | None, end: str | None) -> tuple[str, str]:
     except ValueError as exc:
         raise FetchError(f"Invalid date {start or end!r}: use dd/mm/yyyy") from exc
     if start_date > end_date:
-        raise FetchError(
-            f"Window start {start_date:%d/%m/%Y} is after end {end_date:%d/%m/%Y}"
-        )
+        raise FetchError(f"Window start {start_date:%d/%m/%Y} is after end {end_date:%d/%m/%Y}")
     return start_date.strftime("%d/%m/%Y"), end_date.strftime("%d/%m/%Y")
 
 

@@ -16,9 +16,7 @@ from multi_format_etl.fetch import (
 
 def test_sgs_url_defaults_to_json() -> None:
     """O endpoint SGS pede o formato JSON para o código de série informado."""
-    assert sgs_url(1) == (
-        "https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=json"
-    )
+    assert sgs_url(1) == ("https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=json")
 
 
 def test_sgs_url_with_date_range() -> None:
@@ -42,8 +40,7 @@ def test_resolve_window_fills_missing_start_from_end() -> None:
     start, end = resolve_window(None, "30/06/2024")
     assert end == "30/06/2024"
     expected = (
-        datetime.strptime("30/06/2024", "%d/%m/%Y").date()
-        - timedelta(days=DEFAULT_WINDOW_DAYS)
+        datetime.strptime("30/06/2024", "%d/%m/%Y").date() - timedelta(days=DEFAULT_WINDOW_DAYS)
     ).strftime("%d/%m/%Y")
     assert start == expected
 

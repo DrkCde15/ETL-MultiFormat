@@ -37,9 +37,7 @@ def main() -> int:
 
     settings = load_settings()
     try:
-        out = fetch_bcb_sgs(
-            args.code, settings.raw_dir / "json", start=args.start, end=args.end
-        )
+        out = fetch_bcb_sgs(args.code, settings.raw_dir / "json", start=args.start, end=args.end)
     except FetchError as exc:
         logger.error("Fetch FAILED: %s", exc)
         return 1

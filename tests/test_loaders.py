@@ -102,9 +102,7 @@ def test_load_file_unsupported_suffix_raises(tmp_path: Path) -> None:
 
 def test_clean_drops_rows_missing_required() -> None:
     """O valor nulo intencional da fixture JSON é removido pela limpeza."""
-    df = standardize(
-        load_json(_raw() / "json" / "transactions.json"), "json", "transactions.json"
-    )
+    df = standardize(load_json(_raw() / "json" / "transactions.json"), "json", "transactions.json")
     assert len(df) == 4
     out = clean(df, "json")
     assert len(out) == 3
@@ -121,9 +119,7 @@ def test_clean_coerces_types() -> None:
 
 def test_clean_coerces_csv_types() -> None:
     """Fixture CSV: transaction_date vira datetime, amount numérico."""
-    df = standardize(
-        load_csv(_raw() / "csv" / "transactions.csv"), "csv", "transactions.csv"
-    )
+    df = standardize(load_csv(_raw() / "csv" / "transactions.csv"), "csv", "transactions.csv")
     out = clean(df, "csv")
     assert pd.api.types.is_datetime64_any_dtype(out["transaction_date"])
     assert pd.api.types.is_numeric_dtype(out["transaction_amount"])
@@ -131,9 +127,7 @@ def test_clean_coerces_csv_types() -> None:
 
 def test_clean_dedupes_by_key() -> None:
     """Chaves duplicadas mantêm a última ocorrência (chave json: data)."""
-    df = pd.DataFrame(
-        {"data": ["01/06/2024", "01/06/2024"], "valor": [5.1, 5.2]}
-    )
+    df = pd.DataFrame({"data": ["01/06/2024", "01/06/2024"], "valor": [5.1, 5.2]})
     out = clean(df, "json")
     assert len(out) == 1
     assert out["valor"].iloc[0] == 5.2

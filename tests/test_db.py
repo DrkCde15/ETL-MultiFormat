@@ -27,9 +27,7 @@ def test_quote_accepts_snake_case() -> None:
     assert _quote("gold", "schema") == '"gold"'
 
 
-@pytest.mark.parametrize(
-    "bad", ["Bad-Name", "drop table x", "a b", "1abc", 'x"y', "UPPER"]
-)
+@pytest.mark.parametrize("bad", ["Bad-Name", "drop table x", "a b", "1abc", 'x"y', "UPPER"])
 def test_quote_rejects_bad_identifiers(bad: str) -> None:
     """Identificador fora do padrão snake_case falha com DbError."""
     with pytest.raises(DbError, match="Invalid"):

@@ -30,6 +30,7 @@ def setup_logging(level: str | None = None) -> logging.Logger:
 @dataclass(frozen=True)
 class Settings:
     """Configurações de execução imutáveis."""
+
     project_root: Path
     raw_dir: Path
     processed_dir: Path
@@ -51,7 +52,10 @@ def load_settings() -> Settings:
     try:
         from dotenv import load_dotenv  # type: ignore
     except ImportError:
-        pass
+        if (get_project_root() / ".env").exists():
+            logging.getLogger(__name__).warning(
+                ".env found but python-dotenv is not installed — .env ignored"
+            )
     else:
         root = get_project_root()
         env_file = root / ".env"

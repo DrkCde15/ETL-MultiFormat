@@ -69,9 +69,7 @@ SPEC: dict[str, dict] = {
     },
 }
 
-EXPECTED_COLUMNS: dict[str, list[str]] = {
-    fmt: spec["required"] for fmt, spec in SPEC.items()
-}
+EXPECTED_COLUMNS: dict[str, list[str]] = {fmt: spec["required"] for fmt, spec in SPEC.items()}
 
 
 class CheckError(RuntimeError):
@@ -134,38 +132,28 @@ def check_quality(df: pd.DataFrame, source_format: str) -> list[str]:
             if "min" in bounds:
                 below = int((df[col] < bounds["min"]).sum())
                 if below:
-                    problems.append(
-                        f"{below} value(s) below min {bounds['min']} in column '{col}'"
-                    )
+                    problems.append(f"{below} value(s) below min {bounds['min']} in column '{col}'")
             if "max" in bounds:
                 above = int((df[col] > bounds["max"]).sum())
                 if above:
-                    problems.append(
-                        f"{above} value(s) above max {bounds['max']} in column '{col}'"
-                    )
+                    problems.append(f"{above} value(s) above max {bounds['max']} in column '{col}'")
 
     for col, allowed in spec.get("enums", {}).items():
         if col in df.columns:
             executed.append(f"enum:{col}")
             outside = int((df[col].notna() & ~df[col].isin(allowed)).sum())
             if outside:
-                problems.append(
-                    f"{outside} value(s) outside the allowed set in column '{col}'"
-                )
+                problems.append(f"{outside} value(s) outside the allowed set in column '{col}'")
 
     for col in spec.get("freshness", []):
         if col in df.columns and pd.api.types.is_datetime64_any_dtype(df[col]):
             executed.append(f"freshness:{col}")
             future = int((df[col] > pd.Timestamp.now(tz=df[col].dt.tz)).sum())
             if future:
-                problems.append(
-                    f"{future} future value(s) in temporal column '{col}'"
-                )
+                problems.append(f"{future} future value(s) in temporal column '{col}'")
 
     if problems:
-        raise CheckError(
-            f"Quality checks failed [{source_format}]: " + "; ".join(problems)
-        )
+        raise CheckError(f"Quality checks failed [{source_format}]: " + "; ".join(problems))
     return executed
 
 

@@ -72,11 +72,7 @@ def _json_aggregates(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
 def _xml_aggregates(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Clientes por agência (`branch_id`), quando o extrato a traz."""
     if "branch_id" in df.columns:
-        by_branch = (
-            df.groupby("branch_id")
-            .agg(customers=("customer_id", "size"))
-            .reset_index()
-        )
+        by_branch = df.groupby("branch_id").agg(customers=("customer_id", "size")).reset_index()
         return {"by_branch": by_branch}
     return {"summary": _summary(df)}
 

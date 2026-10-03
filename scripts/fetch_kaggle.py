@@ -35,16 +35,12 @@ def _has_credentials() -> bool:
     if os.getenv("KAGGLE_API_TOKEN"):
         return True
     kaggle_dir = Path.home() / ".kaggle"
-    return (kaggle_dir / "kaggle.json").exists() or (
-        kaggle_dir / "access_token"
-    ).exists()
+    return (kaggle_dir / "kaggle.json").exists() or (kaggle_dir / "access_token").exists()
 
 
 def main() -> int:
     """Autentica e baixa o dataset (descompactado) em raw/csv/."""
-    parser = argparse.ArgumentParser(
-        description="Baixa um dataset Kaggle em data/raw/csv/"
-    )
+    parser = argparse.ArgumentParser(description="Baixa um dataset Kaggle em data/raw/csv/")
     parser.add_argument("--slug", default=DEFAULT_SLUG, help="owner/nome-do-dataset")
     args = parser.parse_args()
 

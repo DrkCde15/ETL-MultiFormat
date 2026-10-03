@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: etl
+          POSTGRES_PASSWORD: etl
+          POSTGRES_DB: multi_format_etl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://etl:etl@localhost:5432/multi_format_etl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Instalar dependências (uv.lock)
+        run: uv sync --extra dev --frozen
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Formatação (ruff format --check)
+        run: uv run ruff format --check .
+
+      - name: Testes com cobertura (inclui roundtrip Postgres)
+        run: uv run pytest --cov=multi_format_etl --cov-report=term-missing --cov-report=xml
+
+      - name: Resumo de cobertura
+        run: |
+          echo "Cobertura total: $(uv run coverage report --format total)%" >> "$GITHUB_STEP_SUMMARY"

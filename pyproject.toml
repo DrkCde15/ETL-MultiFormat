@@ -1,10 +1,10 @@
 [project]
 name = "multi-format-etl"
-version = "0.2.0"
+version = "0.3.0"
 description = "ETL/ELT com dados estruturados e não estruturados (CSV, JSON, XML, logs): pipeline com gold, data quality e serving opcional em Postgres."
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "pandas>=2.0",
     "pyarrow>=14.0",
@@ -21,6 +21,7 @@ dev = [
     "matplotlib>=3.8",
     "nbclient>=0.10",
     "ipykernel>=6.29",
+    "ruff>=0.8",
 ]
 
 [build-system]
@@ -34,3 +35,11 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["data", ".venv", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

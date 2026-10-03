@@ -84,10 +84,7 @@ def load_table(conn, table: str, df: pd.DataFrame, schema: str = DEFAULT_SCHEMA)
     columns = [_quote(str(c)) for c in df.columns]
     placeholders = ", ".join(["%s"] * len(columns))
     insert = f"INSERT INTO {qualified} ({', '.join(columns)}) VALUES ({placeholders})"
-    rows = [
-        tuple(_python_value(v) for v in row)
-        for row in df.itertuples(index=False, name=None)
-    ]
+    rows = [tuple(_python_value(v) for v in row) for row in df.itertuples(index=False, name=None)]
     with conn.cursor() as cur:
         cur.execute(create_table_sql(table, df, schema))
         cur.execute(f"TRUNCATE TABLE {qualified}")
@@ -105,15 +102,11 @@ def load_gold(settings: Settings, dsn: str) -> dict[str, int]:
     """
     paths = sorted(settings.gold_dir.glob("*/*.parquet"))
     if not paths:
-        raise DbError(
-            f"Nenhum parquet em {settings.gold_dir} — rode scripts/run_load.py antes"
-        )
+        raise DbError(f"Nenhum parquet em {settings.gold_dir} — rode scripts/run_load.py antes")
     try:
         import psycopg
     except ImportError as exc:
-        raise DbError(
-            "psycopg não instalado. Rode: uv pip install -e '.[dev]'"
-        ) from exc
+        raise DbError("psycopg não instalado. Rode: uv pip install -e '.[dev]'") from exc
     try:
         conn = psycopg.connect(dsn)
     except Exception as exc:

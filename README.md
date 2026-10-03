@@ -1,13 +1,14 @@
 # ETL/ELT com Dados Estruturados e Não Estruturados
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/DrkCde15/ETL-MultiFormat/actions/workflows/ci.yml/badge.svg)](https://github.com/DrkCde15/ETL-MultiFormat/actions/workflows/ci.yml)
 
 ## Objetivo
 
 Demonstrar capacidade de ingerir e padronizar **diferentes formatos**:
 CSV, JSON, XML e logs semiestruturados de transações.
 
-**v0.2.0 — Etapa 1 (pipeline) concluída:** um loader por formato em
+**v0.3.0 — Etapa 1 (pipeline) concluída:** um loader por formato em
 `load.py` + padronização (`standardize`) + limpeza (`clean`, com
 estatística de descarte) + **camada de data quality** (nulos, chaves,
 tipos, faixas, enums e frescor, com relatório `quality_report.json`) +
@@ -17,8 +18,10 @@ reais** (dataset Kaggle e API do BCB, via `fetch_*.py`); XML e logs
 seguem fixtures (não existem APIs públicas equivalentes). Spark continua
 fora — a gold roda em pandas.
 
-**Etapa 2 (em aberto) — DataOps:** CI (GitHub Actions com pytest +
-ruff), lockfile de dependências e badge de build — achados A4/A6 do
+**Etapa 2 (DataOps) concluída:** CI no GitHub Actions (`uv sync` +
+`ruff check` + `ruff format --check` + `pytest` com cobertura e serviço
+Postgres, habilitando o roundtrip completo), **lockfile `uv.lock`**,
+badge de build e avisos de configuração — achados A4/A5/A6 do
 `docs/revisao-engenharia-dados.md`.
 
 ## Problema
@@ -57,7 +60,7 @@ Futuro: Pandera/Great Expectations, PySpark/Databricks sobre a gold.
 | Formato | Origem | Volume | Licença/acesso |
 |---|---|---|---|
 | CSV | Kaggle `pradeepkumar2424/usa-banking-transactions-dataset-2023-2024` | 5.389 × 20 | CC0 |
-| JSON | API pública **BCB SGS** (série 1 — câmbio USD/BRL, janela de 90 dias) | ~64 × 2 | API aberta, sem credencial |
+| JSON | API pública **BCB SGS** (série 1 — câmbio USD/BRL, janela de `--start 01/01/2021`) | 1.445 × 2 | API aberta, sem credencial |
 | XML | fixture sintética (legado fictício) | 3 clientes | versionada no repo |
 | LOG | fixture sintética (formato `ts\|k=v` da própria aplicação) | 4 eventos | versionada no repo |
 
@@ -67,17 +70,21 @@ clone novo (os 2 testes dos arquivos reais pulam até o fetch rodar).
 
 ## Tecnologias
 
-Python 3.10+, pandas + pyarrow, python-dotenv, pytest, kaggle-api (fetch
-de datasets Kaggle), psycopg (disponibilização opcional em PostgreSQL
-local via Docker). XML via stdlib (`xml.etree`). Nenhum recurso cloud.
+Python 3.11+, pandas + pyarrow, python-dotenv, pytest + pytest-cov, ruff
+(lint/formatação), uv (lockfile `uv.lock` + GitHub Actions), kaggle-api
+(fetch de datasets Kaggle), psycopg (disponibilização opcional em
+PostgreSQL local via Docker). XML via stdlib (`xml.etree`). Nenhum
+recurso cloud.
 
 ## Estrutura do projeto
 
 ```text
 multi-format-etl/
+├── .github/workflows/ci.yml # CI: uv sync + ruff + pytest (com Postgres)
 ├── data/raw/{csv,json,xml,logs}/  # fixtures versionadas; downloads gitignored
 ├── docker-compose.yml   # Postgres 16 local (podman compose / docker compose)
 ├── data/{processed,curated,gold,quality}/  # saída local (gitignored)
+├── uv.lock              # lockfile (uv sync --extra dev --frozen)
 ├── src/multi_format_etl/
 │   ├── aggregate.py     # camada gold: agregados por formato
 │   ├── config.py
@@ -93,7 +100,7 @@ multi-format-etl/
 │   └── run_load.py
 ├── notebooks/
 │   └── 01_analise_exploratoria.ipynb  # EDA das 4 fontes + quality/gold
-├── tests/               # loaders/fetch/gold/quality/db (offline)
+├── tests/               # loaders/fetch/gold/quality/db/config (offline)
 └── docs/
     ├── architecture.md
     └── revisao-engenharia-dados.md
@@ -103,10 +110,9 @@ multi-format-etl/
 
 ```bash
 cd multi-format-etl
-uv venv --python 3.12                # cria .venv com Python 3.12
-source .venv/bin/activate
-uv pip install -e ".[dev]"            # instala o pacote + extras dev
-# ou só as dependências: uv pip install -r requirements.txt
+uv sync --extra dev                # instala do uv.lock (recomendado, reproduzível)
+# ou manualmente: uv venv --python 3.12 && source .venv/bin/activate
+#                 uv pip install -e ".[dev]"
 cp .env.example .env   # obrigatório p/ Kaggle (KAGGLE_USERNAME/KAGGLE_KEY)
 python scripts/fetch_json.py    # 1x: baixa série BCB → data/raw/json/
 python scripts/fetch_kaggle.py  # 1x: baixa dataset Kaggle → data/raw/csv/
@@ -125,14 +131,15 @@ python scripts/load_postgres.py   # sem DATABASE_URL: avisa e sai com 0
 
 ```text
   - csv    processed=5389 curated=5389 gold=2 -> data/curated/csv/data.parquet
-  - json   processed=64   curated=64   gold=1 -> data/curated/json/data.parquet
+  - json   processed=1445 curated=1445 gold=1 -> data/curated/json/data.parquet
   - xml    processed=3    curated=3    gold=1 -> data/curated/xml/data.parquet
   - logs   processed=4    curated=4    gold=2 -> data/curated/logs/data.parquet
-Load DONE: 5460 rows processed, 5460 rows curated, 6 gold tables
+Load DONE: 6841 rows processed, 6841 rows curated, 6 gold tables
 ```
 
-`pytest`: 36 testes (fixtures offline + contrato ponta a ponta dos
-arquivos reais, que pulam em clone novo antes do fetch).
+`pytest`: 52 testes (fixtures offline + contrato ponta a ponta dos
+arquivos reais, que pulam em clone novo antes do fetch; o roundtrip de
+Postgres pula sem `DATABASE_URL` e roda no CI via serviço).
 
 A cada execução o `run_load` grava `data/quality/quality_report.json`
 com o **status da carga, os checks executados por formato**
@@ -168,8 +175,10 @@ Tabelas gold geradas:
    entram no pipeline via `fetch_*.py`; fixtures adaptadas aos schemas
    reais p/ testes offline; XML/logs sem fonte API equivalente).
    Desenho em `docs/architecture.md`.
-7. **Etapa 2 — DataOps**: CI (pytest + ruff no GitHub Actions), lockfile
-   (`uv.lock`) e badge de build (achados A4/A6).
+7. ~~**Etapa 2 — DataOps**~~ (concluído: CI no GitHub Actions com
+   `uv sync --frozen` + `ruff check` + `ruff format --check` + `pytest
+   --cov` com serviço Postgres, lockfile `uv.lock`, badge de build e
+   warning do A5 — achados A4/A5/A6).
 
 ## Licença
 
