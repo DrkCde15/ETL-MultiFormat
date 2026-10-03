@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from multi_format_etl.config import Settings, load_settings
+from multi_format_etl.config import Settings
 from multi_format_etl.db import (
     DbError,
     _column_ddl,
@@ -95,18 +95,38 @@ def test_load_gold_without_parquets_raises(tmp_path: Path) -> None:
         load_gold(settings, "postgresql://invalid-host:1/db")
 
 
-def test_load_gold_roundtrip() -> None:
-    """Integração ao vivo: gold carregado bate com SELECT COUNT(*) (opcional)."""
-    settings = load_settings()
+def test_load_gold_roundtrip(tmp_path: Path) -> None:
+    """Integração ao vivo: parquet gold criado no teste carrega e bate com COUNT(*).
+
+    Hermético: não depende de `run_load` ter rodado (o CI nasce sem
+    data/gold, que é gitignored). A tabela de teste é removida no final.
+    """
     dsn = os.getenv("DATABASE_URL")
     if not dsn:
         pytest.skip("DATABASE_URL não definido (camada Postgres opcional)")
-    loaded = load_gold(settings, dsn)
-    assert loaded
+
+    gold_subdir = tmp_path / "gold" / "csv"
+    gold_subdir.mkdir(parents=True)
+    pd.DataFrame({"status": ["Success", "Failed"], "transacoes": [2, 1]}).to_parquet(
+        gold_subdir / "ci_roundtrip.parquet", index=False
+    )
+    settings = Settings(
+        project_root=tmp_path,
+        raw_dir=tmp_path / "raw",
+        processed_dir=tmp_path / "processed",
+        curated_dir=tmp_path / "curated",
+        gold_dir=tmp_path / "gold",
+        quality_dir=tmp_path / "quality",
+        log_level="INFO",
+    )
     import psycopg
 
-    with psycopg.connect(dsn) as conn:
-        with conn.cursor() as cur:
-            for name, rows in loaded.items():
-                cur.execute(f'SELECT COUNT(*) FROM "gold"."{name}"')
-                assert cur.fetchone()[0] == rows
+    try:
+        loaded = load_gold(settings, dsn)
+        assert loaded == {"csv_ci_roundtrip": 2}
+        with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+            cur.execute('SELECT COUNT(*) FROM "gold"."csv_ci_roundtrip"')
+            assert cur.fetchone()[0] == 2
+    finally:
+        with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+            cur.execute('DROP TABLE IF EXISTS "gold"."csv_ci_roundtrip"')
