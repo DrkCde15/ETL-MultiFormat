@@ -3,7 +3,8 @@
 Só é usado quando `DATABASE_URL` está definido (ver `scripts/load_postgres.py`
 e o `docker-compose.yml`, lido por `podman compose` ou `docker compose`);
 o pipeline de arquivos nunca depende deste módulo.
-Carga em full refresh (TRUNCATE + INSERT), DDL derivado dos dtypes pandas e
+Carga em full refresh (DROP + CREATE + INSERT — o DDL vem dos dtypes pandas,
+então uma mudança de schema recria a tabela em vez de quebrar o INSERT) e
 identificadores validados por regex.
 """
 
@@ -68,18 +69,19 @@ def table_name(parquet_path: Path) -> str:
 
 
 def create_table_sql(table: str, df: pd.DataFrame, schema: str = DEFAULT_SCHEMA) -> str:
-    """SQL idempotente de CREATE SCHEMA + CREATE TABLE com colunas tipadas."""
+    """SQL de CREATE SCHEMA + DROP (se existir) + CREATE com colunas tipadas."""
     columns = ", ".join(
         f"{_quote(str(name))} {_column_ddl(dtype)}" for name, dtype in df.dtypes.items()
     )
     return (
         f"CREATE SCHEMA IF NOT EXISTS {_quote(schema)}; "
-        f"CREATE TABLE IF NOT EXISTS {_quote(schema)}.{_quote(table)} ({columns})"
+        f"DROP TABLE IF EXISTS {_quote(schema)}.{_quote(table)}; "
+        f"CREATE TABLE {_quote(schema)}.{_quote(table)} ({columns})"
     )
 
 
 def load_table(conn, table: str, df: pd.DataFrame, schema: str = DEFAULT_SCHEMA) -> int:
-    """Cria schema/tabela se necessário e faz full refresh (TRUNCATE + INSERT)."""
+    """Full refresh: recria a tabela a partir do DDL dos dtypes e insere as linhas."""
     qualified = f"{_quote(schema)}.{_quote(table)}"
     columns = [_quote(str(c)) for c in df.columns]
     placeholders = ", ".join(["%s"] * len(columns))
@@ -87,7 +89,6 @@ def load_table(conn, table: str, df: pd.DataFrame, schema: str = DEFAULT_SCHEMA)
     rows = [tuple(_python_value(v) for v in row) for row in df.itertuples(index=False, name=None)]
     with conn.cursor() as cur:
         cur.execute(create_table_sql(table, df, schema))
-        cur.execute(f"TRUNCATE TABLE {qualified}")
         if rows:
             cur.executemany(insert, rows)
     conn.commit()

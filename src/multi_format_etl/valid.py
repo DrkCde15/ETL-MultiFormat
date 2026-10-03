@@ -34,17 +34,25 @@ SPEC: dict[str, dict] = {
         },
         "freshness": ["transaction_date"],
     },
-    # json: série BCB SGS (fonte real — fetch_json.py). `data` permanece
-    # string dd/mm/yyyy: parsing livre é ambíguo (dayfirst) e foi adiado
-    # junto com o trabalho de fuso horário (achado A7 da revisão).
+    # json: PTAX USD/BRL do BCB via olinda.bcb.gov.br (fonte real —
+    # fetch_json.py). O payload vem em camelCase (`dataHoraCotacao`) e o
+    # `rename` mapeia para os nomes canônicos do pipeline. `datahora` chega
+    # em ISO não ambíguo ("YYYY-MM-DD HH:MM:SS.fff"), ao contrário da série
+    # SGS anterior (achado A7) — daí temporal + frescor habilitados; o
+    # timestamp segue naïve (mesmo adiamento de fuso do A7).
     "json": {
-        "required": ["data", "valor"],
-        "key": ["data"],
-        "numeric": ["valor"],
-        "temporal": [],
-        "ranges": {"valor": {"min": 0}},
+        "rename": {
+            "datahoracotacao": "datahora",
+            "cotacaocompra": "cotacao_compra",
+            "cotacaovenda": "cotacao_venda",
+        },
+        "required": ["datahora", "cotacao_compra", "cotacao_venda"],
+        "key": ["datahora"],
+        "numeric": ["cotacao_compra", "cotacao_venda"],
+        "temporal": ["datahora"],
+        "ranges": {"cotacao_compra": {"min": 0}, "cotacao_venda": {"min": 0}},
         "enums": {},
-        "freshness": [],
+        "freshness": ["datahora"],
     },
     "xml": {
         "required": ["customer_id", "full_name"],

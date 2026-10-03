@@ -1,0 +1,24 @@
+FROM apache/airflow:2.6.3-python3.11
+
+USER root
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+# - zz-airflow-user.pth: o image instala o Airflow no site-packages do usuário
+#   airflow (/home/airflow/.local); expõe esse diretório no sys.path do sistema
+#   para que qualquer uid/HOME (o compose usa uid 1000 + HOME em .airflow/)
+#   consiga importar airflow — e o pandas do sistema sobreponha o 1.5.3 do image.
+# - PIP_USER=true do image mandaria o pip para /root/.local (invisível em
+#   runtime): removido para instalar em /usr/local/lib/.../site-packages.
+# - Constraints 2.6.3 pinam pandas 1.5.3/pyarrow 11; eleva para os floors do
+#   projeto (pandas>=2.0, pyarrow>=14) sem mexer no resto do ambiente.
+RUN echo "/home/airflow/.local/lib/python3.11/site-packages" \
+        > /usr/local/lib/python3.11/site-packages/zz-airflow-user.pth \
+    && python3.11 -c "import urllib.request; urllib.request.urlretrieve(\
+        'https://raw.githubusercontent.com/apache/airflow/constraints-2.6.3/constraints-3.11.txt',\
+        '/tmp/constraints.txt')" \
+    && sed -i -E 's/^pandas==.*/pandas==2.2.3/; s/^pyarrow==.*/pyarrow==14.0.1/' /tmp/constraints.txt \
+    && env -u PIP_USER python3.11 -m pip install --no-cache-dir \
+        --constraint /tmp/constraints.txt \
+        . apache-airflow-providers-postgres \
+    && rm /tmp/constraints.txt
+USER airflow

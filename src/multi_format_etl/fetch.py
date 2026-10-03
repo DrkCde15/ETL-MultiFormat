@@ -1,4 +1,4 @@
-"""Busca de fontes brutas externas (BCB SGS JSON — somente stdlib).
+"""Busca de fontes brutas externas (BCB PTAX JSON — somente stdlib).
 
 O download do Kaggle vive em scripts/fetch_kaggle.py, sobre o pacote oficial
 kaggle-api. Credenciais vêm do ambiente (.env) e nunca são logadas nem
@@ -14,25 +14,20 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-SGS_ENDPOINT = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados"
+# PTAX de fechamento (compra/venda do USD/BRL) — mesmo BCB do SGS, endpoint
+# público em olinda.bcb.gov.br (api.bcb.gov.br saiu do DNS em 03/10/2026).
+PTAX_ENDPOINT = (
+    "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"
+    "CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)"
+)
 
-# O BCB rejeita séries diárias com janela maior que 10 anos (HTTP 406),
-# então requisições sem datas caem no padrão dos últimos 90 dias.
+# Janela padrão quando o chamador omite as datas (séries com ~5,8 anos já
+# foram validadas de ponta a ponta neste endpoint).
 DEFAULT_WINDOW_DAYS = 90
 
 
 class FetchError(RuntimeError):
     """Lançado quando uma fonte externa não pode ser baixada/descompactada."""
-
-
-def sgs_url(code: int, start: str | None = None, end: str | None = None) -> str:
-    """Monta a URL do endpoint JSON do BCB SGS (datas como dd/mm/yyyy)."""
-    params = ["formato=json"]
-    if start:
-        params.append(f"dataInicial={start}")
-    if end:
-        params.append(f"dataFinal={end}")
-    return f"{SGS_ENDPOINT.format(code=code)}?{'&'.join(params)}"
 
 
 def resolve_window(start: str | None, end: str | None) -> tuple[str, str]:
@@ -55,6 +50,19 @@ def resolve_window(start: str | None, end: str | None) -> tuple[str, str]:
     return start_date.strftime("%d/%m/%Y"), end_date.strftime("%d/%m/%Y")
 
 
+def ptax_url(start: str, end: str) -> str:
+    """Monta a URL do CotacaoDolarPeriodo (OData).
+
+    A API pública usa dd/mm/yyyy; o endpoint espera MM-DD-YYYY entre aspas.
+    """
+    try:
+        start_md = datetime.strptime(start, "%d/%m/%Y").strftime("%m-%d-%Y")
+        end_md = datetime.strptime(end, "%d/%m/%Y").strftime("%m-%d-%Y")
+    except ValueError as exc:
+        raise FetchError(f"Invalid date {start!r}/{end!r}: use dd/mm/yyyy") from exc
+    return f"{PTAX_ENDPOINT}?@dataInicial='{start_md}'&@dataFinalCotacao='{end_md}'&$format=json"
+
+
 def http_get(url: str, *, timeout: float = 60.0) -> bytes:
     """Faz GET na url e retorna o corpo. Lança FetchError em erros HTTP/de rede."""
     request = urllib.request.Request(url, headers={"User-Agent": "multi-format-etl/0.1"})
@@ -71,30 +79,30 @@ def http_get(url: str, *, timeout: float = 60.0) -> bytes:
         raise FetchError(f"Connection failed for {url}: {exc}") from exc
 
 
-def fetch_bcb_sgs(
-    code: int,
+def fetch_bcb_ptax(
     dest_dir: Path,
     *,
     start: str | None = None,
     end: str | None = None,
 ) -> Path:
-    """Baixa uma série BCB SGS como JSON bruto em dest_dir.
+    """Baixa a série PTAX USD/BRL (compra/venda) como JSON bruto em dest_dir.
 
     Datas são dd/mm/yyyy; datas omitidas caem no padrão dos últimos 90 dias
-    (ver resolve_window). Grava bcb_sgs_{code}.json exatamente como recebido,
-    após validar que o payload é um array JSON não vazio. Caso contrário,
+    (ver resolve_window). Grava bcb_ptax_usd.json exatamente como recebido,
+    após validar o envelope {"value": [...]} com registros. Caso contrário,
     lança FetchError.
     """
     start, end = resolve_window(start, end)
-    payload = http_get(sgs_url(code, start, end))
+    payload = http_get(ptax_url(start, end))
     try:
-        records = json.loads(payload)
+        envelope = json.loads(payload)
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise FetchError(f"BCB SGS series {code} returned invalid JSON") from exc
+        raise FetchError("PTAX endpoint returned invalid JSON") from exc
+    records = envelope.get("value") if isinstance(envelope, dict) else None
     if not isinstance(records, list) or not records:
-        raise FetchError(f"BCB SGS series {code} returned no records")
+        raise FetchError("PTAX endpoint returned no records")
     dest_dir.mkdir(parents=True, exist_ok=True)
-    out = dest_dir / f"bcb_sgs_{code}.json"
+    out = dest_dir / "bcb_ptax_usd.json"
     out.write_bytes(payload)
     return out
 
@@ -102,8 +110,8 @@ def fetch_bcb_sgs(
 __all__ = [
     "DEFAULT_WINDOW_DAYS",
     "FetchError",
-    "fetch_bcb_sgs",
+    "fetch_bcb_ptax",
     "http_get",
+    "ptax_url",
     "resolve_window",
-    "sgs_url",
 ]

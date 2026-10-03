@@ -33,14 +33,14 @@ def test_csv_aggregates() -> None:
 
 
 def test_json_aggregates() -> None:
-    """JSON (BCB): by_month com dias observados e min <= max do valor."""
+    """JSON (PTAX): by_month com pregões e min <= max da cotação de venda."""
     df = _curated("json/transactions.json", "json", load_json)
     tables = aggregate(df, "json")
     assert set(tables) == {"by_month"}
     by_month = tables["by_month"]
     assert int(by_month["days"].sum()) == len(df)
-    assert (by_month["valor_min"] <= by_month["valor_max"]).all()
-    assert {"valor_min", "valor_max", "valor_avg"} <= set(by_month.columns)
+    assert (by_month["venda_min"] <= by_month["venda_max"]).all()
+    assert {"venda_min", "venda_max", "venda_avg"} <= set(by_month.columns)
 
 
 def test_xml_aggregates() -> None:

@@ -47,3 +47,6 @@ htmlcov/
 /*.log
 /logs/
 /tmp/
+
+# Airflow local (Etapa 3): logs/estado local fora do Git (metadados no Postgres)
+.airflow/

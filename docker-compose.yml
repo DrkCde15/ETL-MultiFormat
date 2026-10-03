@@ -1,6 +1,10 @@
-# Banco local para a camada opcional de disponibilização (gold → Postgres).
-# Uso: podman compose up -d && export DATABASE_URL=postgresql://etl:etl@localhost:5432/multi_format_etl
-# (docker compose funciona igual — o arquivo é padrão OCI/compose)
+# Serviços locais do multi-format-etl (padrão OCI/compose: podman ou docker).
+#   db:       gold -> Postgres opcional + metadados do Airflow (banco `airflow`)
+#             podman compose up db && export DATABASE_URL=postgresql://etl:etl@localhost:5432/multi_format_etl
+#   airflow:  orquestração (Etapa 3) — UI em localhost:8080 (admin/admin)
+#             podman compose up -d --build airflow
+#             metadados no Postgres (banco `airflow`) + LocalExecutor;
+#             a HOME (.airflow/) é gitignorada; usa o uid do host via AIRFLOW_UID
 services:
   db:
     image: postgres:16-alpine
@@ -13,11 +17,43 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U etl -d multi_format_etl"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: multi-format-etl-airflow
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AIRFLOW_HOME: /opt/airflow/project/.airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/project/dags
+      HOME: /opt/airflow/project/.airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://etl:etl@db:5432/airflow"
+      AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "utc"
+      AIRFLOW_UID: "${AIRFLOW_UID:-1000}"
+      DATABASE_URL: "postgresql://etl:etl@db:5432/multi_format_etl"
+    user: "${AIRFLOW_UID:-1000}:0"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/opt/airflow/project
+    command: >
+      bash -c "rm -f /opt/airflow/project/.airflow/*.pid
+      && airflow db upgrade
+      && (airflow users create -u admin -p admin -r Admin
+      -e admin@example.com -f Admin -l User 2>/dev/null || true)
+      && rm -f /opt/airflow/project/.airflow/standalone_admin_password.txt
+      && airflow standalone"
 
 volumes:
   pgdata:

@@ -24,14 +24,14 @@ logger = setup_logging()
 # equivalente e ficam nas fixtures sintéticas versionadas.
 SOURCES = [
     "csv/Banking_Transactions_USA_2023_2024.csv",
-    "json/bcb_sgs_1.json",
+    "json/bcb_ptax_usd.json",
     "xml/customers.xml",
     "logs/transactions.log",
 ]
 
 FETCH_HINT = {
     "csv/Banking_Transactions_USA_2023_2024.csv": "python scripts/fetch_kaggle.py",
-    "json/bcb_sgs_1.json": "python scripts/fetch_json.py",
+    "json/bcb_ptax_usd.json": "python scripts/fetch_json.py",
 }
 
 

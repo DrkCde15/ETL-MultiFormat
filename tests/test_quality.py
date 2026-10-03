@@ -21,9 +21,9 @@ def _json_curated() -> pd.DataFrame:
 
 
 def test_range_violation_raises() -> None:
-    """Valor negativo viola a faixa min do SPEC (json: valor >= 0)."""
+    """Cotação negativa viola a faixa min do SPEC (json: cotacao_venda >= 0)."""
     df = _json_curated()
-    df.loc[0, "valor"] = -1.0
+    df.loc[0, "cotacao_venda"] = -1.0
     with pytest.raises(CheckError, match="below min 0"):
         check_quality(df, "json")
 
@@ -59,23 +59,25 @@ def test_freshness_violation_raises() -> None:
 def test_check_quality_returns_executed_checks() -> None:
     """A lista de checks executados traz as categorias rodadas por formato."""
     executed = check_quality(_json_curated(), "json")
-    assert "null:data" in executed
-    assert "null:valor" in executed
-    assert "key:data" in executed
-    assert "type:valor" in executed
-    assert "range:valor" in executed
+    assert "null:datahora" in executed
+    assert "null:cotacao_venda" in executed
+    assert "key:datahora" in executed
+    assert "type:cotacao_venda" in executed
+    assert "time:datahora" in executed
+    assert "range:cotacao_venda" in executed
+    assert "freshness:datahora" in executed
     assert check_quality(pd.DataFrame({"a": [1]}), "desconhecido") == []
 
 
 def test_clean_with_stats_counts_dropped_nulls() -> None:
-    """A fixture JSON registra o valor nulo removido, por coluna."""
+    """A fixture JSON registra a cotação de venda nula removida, por coluna."""
     path = load_settings().project_root / "data" / "raw" / "json" / "transactions.json"
     df = standardize(load_json(path), "json", path.name)
     out, stats = clean_with_stats(df, "json")
     assert stats["rows_in"] == 4
     assert stats["rows_out"] == 3
     assert stats["dropped_null_required"] == 1
-    assert stats["dropped_by_column"] == {"valor": 1}
+    assert stats["dropped_by_column"] == {"cotacao_venda": 1}
     assert stats["dropped_duplicate_key"] == 0
 
 
@@ -83,8 +85,8 @@ def test_clean_with_stats_counts_dropped_duplicates() -> None:
     """Chaves duplicadas são contadas à parte dos nulos."""
     df = pd.DataFrame(
         {
-            "data": ["01/06/2024", "01/06/2024", "02/06/2024"],
-            "valor": [5.1, 5.2, 5.3],
+            "datahora": ["2024-06-01 13:07:12", "2024-06-01 13:07:12", "2024-06-02 13:07:12"],
+            "cotacao_venda": [5.1, 5.2, 5.3],
         }
     )
     out, stats = clean_with_stats(df, "json")

@@ -6,6 +6,7 @@ escreva uma função e registre-a em FORMAT_BY_SUFFIX.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -28,11 +29,19 @@ def load_csv(path: Path) -> pd.DataFrame:
 
 
 def load_json(path: Path) -> pd.DataFrame:
-    """Carrega um arquivo JSON array (plano ou aninhado um nível)."""
+    """Carrega JSON array (plano) ou envelope de registros {"value": [...]}."""
     if not path.exists():
         raise LoadError(f"JSON file not found: {path}")
     try:
-        return pd.read_json(path)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise LoadError(f"Failed to read JSON {path}: {exc}") from exc
+    if isinstance(payload, dict) and isinstance(payload.get("value"), list):
+        payload = payload["value"]
+    if not isinstance(payload, (list, dict)):
+        raise LoadError(f"Unsupported JSON payload in {path}: {type(payload).__name__}")
+    try:
+        return pd.DataFrame(payload)
     except Exception as exc:
         raise LoadError(f"Failed to read JSON {path}: {exc}") from exc
 

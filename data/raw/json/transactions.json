@@ -1,6 +1,8 @@
-[
-  {"data": "03/06/2024", "valor": "5.1458"},
-  {"data": "04/06/2024", "valor": null},
-  {"data": "05/06/2024", "valor": "5.1670"},
-  {"data": "06/06/2024", "valor": "5.1234"}
-]
+{
+  "value": [
+    {"cotacaoCompra": 5.142, "cotacaoVenda": 5.1458, "dataHoraCotacao": "2024-06-03 13:07:12.104"},
+    {"cotacaoCompra": 5.1641, "cotacaoVenda": null, "dataHoraCotacao": "2024-06-04 13:07:09.981"},
+    {"cotacaoCompra": 5.1636, "cotacaoVenda": 5.167, "dataHoraCotacao": "2024-06-05 13:07:15.376"},
+    {"cotacaoCompra": 5.12, "cotacaoVenda": 5.1234, "dataHoraCotacao": "2024-06-06 13:07:11.552"}
+  ]
+}

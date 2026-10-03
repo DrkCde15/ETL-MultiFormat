@@ -8,7 +8,7 @@
 Demonstrar capacidade de ingerir e padronizar **diferentes formatos**:
 CSV, JSON, XML e logs semiestruturados de transações.
 
-**v0.3.0 — Etapa 1 (pipeline) concluída:** um loader por formato em
+**v0.4.0 — Etapa 1 (pipeline) concluída:** um loader por formato em
 `load.py` + padronização (`standardize`) + limpeza (`clean`, com
 estatística de descarte) + **camada de data quality** (nulos, chaves,
 tipos, faixas, enums e frescor, com relatório `quality_report.json`) +
@@ -24,6 +24,16 @@ Postgres, habilitando o roundtrip completo), **lockfile `uv.lock`**,
 badge de build e avisos de configuração — achados A4/A5/A6 do
 `docs/revisao-engenharia-dados.md`.
 
+**Etapa 3 (orquestração) concluída:** DAG do **Airflow 2.6**
+(`dags/multi_format_etl_dag.py`) encadeia `extract → transform →
+load` (fetch PTAX → run_load → load_postgres) diariamente às 06:00
+(UTC), em container próprio
+(`Dockerfile.airflow` + serviço `airflow` no compose) com UI local em
+`localhost:8080` (admin/admin) — metadados no Postgres (banco `airflow`)
++ LocalExecutor. Falha da fonte BCB é **fail-fast por decisão
+explícita**: run fica vermelha (retry único) em vez de seguir com
+snapshot velho.
+
 ## Problema
 
 Na prática, dados chegam em formatos heterogêneos (extratos CSV, payloads
@@ -35,7 +45,7 @@ formato e proveniência (`_source_format`, `_source_file`).
 
 ```text
 data/raw/csv/   ← Kaggle   (fetch_kaggle.py, gitignored)
-data/raw/json/  ← API BCB  (fetch_json.py,    gitignored)
+data/raw/json/  ← BCB PTAX (fetch_json.py,    gitignored)
 data/raw/xml/   ← fixture versionada
 data/raw/logs/  ← fixture versionada
         ↓
@@ -51,6 +61,9 @@ data/raw/logs/  ← fixture versionada
 
   + data/quality/quality_report.json  (status, checks executados,
     descartes do clean e totais — gravado a cada execução)
+
+Orquestração (Etapa 3): DAG `multi_format_etl` no Airflow —
+  extract → transform → load  (06:00 UTC/diário, catchup off)
 ```
 
 Futuro: Pandera/Great Expectations, PySpark/Databricks sobre a gold.
@@ -60,7 +73,7 @@ Futuro: Pandera/Great Expectations, PySpark/Databricks sobre a gold.
 | Formato | Origem | Volume | Licença/acesso |
 |---|---|---|---|
 | CSV | Kaggle `pradeepkumar2424/usa-banking-transactions-dataset-2023-2024` | 5.389 × 20 | CC0 |
-| JSON | API pública **BCB SGS** (série 1 — câmbio USD/BRL, janela de `--start 01/01/2021`) | 1.445 × 2 | API aberta, sem credencial |
+| JSON | API pública **BCB PTAX** (`olinda.bcb.gov.br` — USD/BRL compra/venda, janela de `--start 01/01/2021`) | 1.446 × 3 | API aberta, sem credencial |
 | XML | fixture sintética (legado fictício) | 3 clientes | versionada no repo |
 | LOG | fixture sintética (formato `ts\|k=v` da própria aplicação) | 4 eventos | versionada no repo |
 
@@ -73,28 +86,32 @@ clone novo (os 2 testes dos arquivos reais pulam até o fetch rodar).
 Python 3.11+, pandas + pyarrow, python-dotenv, pytest + pytest-cov, ruff
 (lint/formatação), uv (lockfile `uv.lock` + GitHub Actions), kaggle-api
 (fetch de datasets Kaggle), psycopg (disponibilização opcional em
-PostgreSQL local via Docker). XML via stdlib (`xml.etree`). Nenhum
-recurso cloud.
+PostgreSQL local via Docker), Apache Airflow 2.6 (orquestração local em
+container — LocalExecutor + metadados no Postgres). XML via stdlib
+(`xml.etree`). Nenhum recurso cloud.
 
 ## Estrutura do projeto
 
 ```text
 multi-format-etl/
-├── .github/workflows/ci.yml # CI: uv sync + ruff + pytest (com Postgres)
+├── .github/workflows/ci.yml # CI: uv sync + ruff + compileall + pytest
+├── Dockerfile.airflow   # imagem Airflow 2.6 com o projeto instalado
+├── dags/multi_format_etl_dag.py  # DAG: extract → transform → load (ETL p/ Postgres)
 ├── data/raw/{csv,json,xml,logs}/  # fixtures versionadas; downloads gitignored
-├── docker-compose.yml   # Postgres 16 local (podman compose / docker compose)
+├── docker-compose.yml   # Postgres 16 + Airflow local (podman / docker compose)
+├── docker-entrypoint-initdb.d/  # init do Postgres: cria o banco airflow
 ├── data/{processed,curated,gold,quality}/  # saída local (gitignored)
 ├── uv.lock              # lockfile (uv sync --extra dev --frozen)
 ├── src/multi_format_etl/
 │   ├── aggregate.py     # camada gold: agregados por formato
 │   ├── config.py
 │   ├── db.py            # gold → Postgres (opcional, DATABASE_URL)
-│   ├── fetch.py         # BCB SGS (stdlib) + janela de datas
+│   ├── fetch.py         # BCB PTAX (stdlib) + janela de datas
 │   ├── load.py          # registry suffix → reader (csv/json/xml/log)
 │   ├── transform.py     # standardize() + clean() (com estatísticas)
 │   └── valid.py         # SPEC + checks + relatório de qualidade
 ├── scripts/
-│   ├── fetch_json.py    # baixa série BCB → data/raw/json/ (gitignored)
+│   ├── fetch_json.py    # baixa série PTAX do BCB → data/raw/json/ (gitignored)
 │   ├── fetch_kaggle.py  # baixa dataset Kaggle (kaggle-api) → data/raw/csv/
 │   ├── load_postgres.py # gold → Postgres (só com DATABASE_URL)
 │   └── run_load.py
@@ -114,15 +131,22 @@ uv sync --extra dev                # instala do uv.lock (recomendado, reproduzí
 # ou manualmente: uv venv --python 3.12 && source .venv/bin/activate
 #                 uv pip install -e ".[dev]"
 cp .env.example .env   # obrigatório p/ Kaggle (KAGGLE_USERNAME/KAGGLE_KEY)
-python scripts/fetch_json.py    # 1x: baixa série BCB → data/raw/json/
+python scripts/fetch_json.py    # 1x: baixa série PTAX (BCB) → data/raw/json/
 python scripts/fetch_kaggle.py  # 1x: baixa dataset Kaggle → data/raw/csv/
 python scripts/run_load.py
 pytest
 
 # opcional: disponibilização das tabelas gold em Postgres local
-podman compose up -d   # (ou: docker compose up -d)
+podman compose up -d db   # (ou: docker compose up -d db)
 export DATABASE_URL=postgresql://etl:etl@localhost:5432/multi_format_etl
 python scripts/load_postgres.py   # sem DATABASE_URL: avisa e sai com 0
+
+# opcional: orquestração (Airflow local; UI em http://localhost:8080 — admin/admin)
+podman compose up -d --build airflow
+# primeira vez: despausar/trigger (DAG nasce pausada)
+podman compose exec airflow airflow dags unpause multi_format_etl
+podman compose exec airflow airflow dags trigger multi_format_etl
+podman compose down            # para tudo (db + airflow)
 ```
 
 ## Resultado
@@ -131,13 +155,13 @@ python scripts/load_postgres.py   # sem DATABASE_URL: avisa e sai com 0
 
 ```text
   - csv    processed=5389 curated=5389 gold=2 -> data/curated/csv/data.parquet
-  - json   processed=1445 curated=1445 gold=1 -> data/curated/json/data.parquet
+  - json   processed=1446 curated=1446 gold=1 -> data/curated/json/data.parquet
   - xml    processed=3    curated=3    gold=1 -> data/curated/xml/data.parquet
   - logs   processed=4    curated=4    gold=2 -> data/curated/logs/data.parquet
-Load DONE: 6841 rows processed, 6841 rows curated, 6 gold tables
+Load DONE: 6842 rows processed, 6842 rows curated, 6 gold tables
 ```
 
-`pytest`: 52 testes (fixtures offline + contrato ponta a ponta dos
+`pytest`: 53 testes (fixtures offline + contrato ponta a ponta dos
 arquivos reais, que pulam em clone novo antes do fetch; o roundtrip de
 Postgres pula sem `DATABASE_URL` e roda no CI via serviço).
 
@@ -150,7 +174,8 @@ coluna, chaves duplicadas) e os totais — evidência auditável da qualidade.
 **Postgres opcional**: com `DATABASE_URL` apontando para o
 `podman compose up -d`, `scripts/load_postgres.py` replica as 6 tabelas
 gold no schema `gold` (`gold.csv_by_status`, `gold.json_by_month`, …)
-em full refresh (TRUNCATE + INSERT), com DDL derivado dos dtypes. Sem o
+em full refresh (DROP + CREATE + INSERT — o DDL vem dos dtypes, então
+mudança de schema recria a tabela). Sem o
 DSN, o script só avisa — o pipeline de arquivos nunca depende do banco.
 
 Tabelas gold geradas:
@@ -158,7 +183,7 @@ Tabelas gold geradas:
 | Formato | Tabelas | Conteúdo |
 |---|---|---|
 | csv | `by_status`, `by_month` | transações, total/média de valor, taxa de fraude mensal |
-| json | `by_month` | dias observados, mín/máx/média da série BCB por mês |
+| json | `by_month` | pregões observados, mín/máx/média da PTAX (venda) por mês |
 | xml | `by_branch` | clientes por agência |
 | logs | `by_status`, `by_type` | eventos e volume transacionado |
 
@@ -179,6 +204,10 @@ Tabelas gold geradas:
    `uv sync --frozen` + `ruff check` + `ruff format --check` + `pytest
    --cov` com serviço Postgres, lockfile `uv.lock`, badge de build e
    warning do A5 — achados A4/A5/A6).
+8. ~~**Etapa 3 — Orquestração**~~ (concluído: DAG `multi_format_etl` no
+   Airflow 2.6 em container — `dags/` + `Dockerfile.airflow` + serviço
+   `airflow` no compose; agendamento diário 06:00, fail-fast na fonte,
+   `compileall dags` no CI).
 
 ## Licença
 

@@ -40,6 +40,9 @@ jobs:
       - name: Formatação (ruff format --check)
         run: uv run ruff format --check .
 
+      - name: Sintaxe da DAG (compileall)
+        run: uv run python -m compileall dags
+
       - name: Testes com cobertura (inclui roundtrip Postgres)
         run: uv run pytest --cov=multi_format_etl --cov-report=term-missing --cov-report=xml
 

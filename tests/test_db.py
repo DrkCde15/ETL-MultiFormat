@@ -44,7 +44,7 @@ def test_column_ddl_maps_pandas_types() -> None:
 
 
 def test_create_table_sql_includes_schema_and_columns() -> None:
-    """DDL idempotente cria schema e tabela com as colunas tipadas."""
+    """DDL recria a tabela (DROP + CREATE) com as colunas tipadas."""
     df = pd.DataFrame(
         {
             "events": [1],
@@ -55,6 +55,7 @@ def test_create_table_sql_includes_schema_and_columns() -> None:
     )
     sql = create_table_sql("logs_by_status", df)
     assert 'CREATE SCHEMA IF NOT EXISTS "gold"' in sql
+    assert 'DROP TABLE IF EXISTS "gold"."logs_by_status"' in sql
     assert '"logs_by_status"' in sql
     assert '"events" BIGINT' in sql
     assert '"total" DOUBLE PRECISION' in sql

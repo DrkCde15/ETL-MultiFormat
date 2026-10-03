@@ -13,9 +13,15 @@ from multi_format_etl.valid import SPEC
 
 
 def standardize(df: pd.DataFrame, source_format: str, source_file: str) -> pd.DataFrame:
-    """Normaliza nomes de colunas e marca proveniência (sem lógica de negócio ainda)."""
+    """Normaliza nomes de colunas e marca proveniência (sem lógica de negócio ainda).
+
+    Lowercase + strip primeiro; um `rename` opcional no SPEC traduz campos da
+    fonte bruta (ex.: camelCase do PTAX) para os nomes canônicos do contrato.
+    """
     out = df.copy()
-    out.columns = [c.strip().lower() for c in out.columns]
+    columns = [c.strip().lower() for c in out.columns]
+    rename = SPEC.get(source_format, {}).get("rename", {})
+    out.columns = [rename.get(c, c) for c in columns]
     out["_source_format"] = source_format
     out["_source_file"] = source_file
     return out
@@ -27,8 +33,9 @@ def clean_with_stats(df: pd.DataFrame, source_format: str) -> tuple[pd.DataFrame
     chave. Função pura; retorna (df_limpo, estatísticas de descarte)."""
     spec = SPEC.get(source_format, {})
     out = df.copy()
-    for col in out.select_dtypes(include=["object", "str"]).columns:
-        out[col] = out[col].str.strip()
+    for col in out.columns:
+        if pd.api.types.is_object_dtype(out[col]) or pd.api.types.is_string_dtype(out[col]):
+            out[col] = out[col].str.strip()
     for col in spec.get("numeric", []):
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="raise")

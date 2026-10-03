@@ -27,10 +27,10 @@ def test_load_csv() -> None:
 
 
 def test_load_json() -> None:
-    """A fixture JSON espelha uma série BCB SGS (inclui um valor nulo)."""
+    """A fixture JSON espelha o envelope cru do PTAX (camelCase, 1 venda nula)."""
     df = load_json(_raw() / "json" / "transactions.json")
     assert len(df) == 4
-    assert df["valor"].isna().sum() == 1
+    assert df["cotacaoVenda"].isna().sum() == 1
 
 
 def test_load_xml() -> None:
@@ -101,12 +101,13 @@ def test_load_file_unsupported_suffix_raises(tmp_path: Path) -> None:
 
 
 def test_clean_drops_rows_missing_required() -> None:
-    """O valor nulo intencional da fixture JSON é removido pela limpeza."""
+    """A venda nula intencional da fixture JSON é removida pela limpeza."""
     df = standardize(load_json(_raw() / "json" / "transactions.json"), "json", "transactions.json")
+    assert {"datahora", "cotacao_compra", "cotacao_venda"} <= set(df.columns)
     assert len(df) == 4
     out = clean(df, "json")
     assert len(out) == 3
-    assert out["valor"].notna().all()
+    assert out["cotacao_venda"].notna().all()
 
 
 def test_clean_coerces_types() -> None:
@@ -126,11 +127,16 @@ def test_clean_coerces_csv_types() -> None:
 
 
 def test_clean_dedupes_by_key() -> None:
-    """Chaves duplicadas mantêm a última ocorrência (chave json: data)."""
-    df = pd.DataFrame({"data": ["01/06/2024", "01/06/2024"], "valor": [5.1, 5.2]})
+    """Chaves duplicadas mantêm a última ocorrência (chave json: datahora)."""
+    df = pd.DataFrame(
+        {
+            "datahora": ["2024-06-03 13:07:12", "2024-06-03 13:07:12"],
+            "cotacao_venda": [5.1, 5.2],
+        }
+    )
     out = clean(df, "json")
     assert len(out) == 1
-    assert out["valor"].iloc[0] == 5.2
+    assert out["cotacao_venda"].iloc[0] == 5.2
 
 
 def test_check_quality_passes_on_cleaned_fixtures() -> None:
@@ -150,8 +156,8 @@ def test_check_quality_reports_every_problem() -> None:
     """Nulos, chaves duplicadas e tipos errados são reportados de uma vez."""
     df = pd.DataFrame(
         {
-            "data": ["01/06/2024", "01/06/2024", None],
-            "valor": ["not-a-number", 2.0, 3.0],
+            "datahora": ["2024-06-01 13:07:12", "2024-06-01 13:07:12", None],
+            "cotacao_venda": ["not-a-number", 2.0, 3.0],
         }
     )
     with pytest.raises(CheckError, match=r"null.*duplicate.*expected numeric"):
@@ -160,11 +166,11 @@ def test_check_quality_reports_every_problem() -> None:
 
 REAL_SOURCES = [
     ("csv/Banking_Transactions_USA_2023_2024.csv", "csv", load_csv),
-    ("json/bcb_sgs_1.json", "json", load_json),
+    ("json/bcb_ptax_usd.json", "json", load_json),
 ]
 
 
-@pytest.mark.parametrize("rel,fmt,loader", REAL_SOURCES, ids=["csv-kaggle", "json-bcb"])
+@pytest.mark.parametrize("rel,fmt,loader", REAL_SOURCES, ids=["csv-kaggle", "json-ptax"])
 def test_real_source_passes_contract(rel: str, fmt: str, loader) -> None:
     """Fontes reais das APIs satisfazem colunas + qualidade ponta a ponta.
 

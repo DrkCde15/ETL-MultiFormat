@@ -1,0 +1,14 @@
+.venv
+.git
+.airflow
+data
+notebooks
+dags
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+coverage.xml
+htmlcov
+.ipynb_checkpoints
+.github

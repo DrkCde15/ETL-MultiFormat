@@ -49,20 +49,20 @@ def _csv_aggregates(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
 
 def _json_aggregates(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    """Série BCB por mês: dias observados e mín/máx/média do valor.
+    """Série PTAX por mês: pregões observados e mín/máx/média da venda.
 
-    O parsing da chave `data` usa formato explícito `%d/%m/%Y` — sem
-    ambiguidade de dayfirst (a ambiguidade era só no parsing livre).
+    `datahora` já chega datetime do curated (SPEC json) — sem parsing
+    manual, sem ambiguidade de dayfirst.
     """
-    months = pd.to_datetime(df["data"], format="%d/%m/%Y").dt.to_period("M").astype(str)
+    months = df["datahora"].dt.to_period("M").astype(str)
     by_month = (
         df.assign(month=months)
         .groupby("month")
         .agg(
-            days=("data", "size"),
-            valor_min=("valor", "min"),
-            valor_max=("valor", "max"),
-            valor_avg=("valor", "mean"),
+            days=("datahora", "size"),
+            venda_min=("cotacao_venda", "min"),
+            venda_max=("cotacao_venda", "max"),
+            venda_avg=("cotacao_venda", "mean"),
         )
         .reset_index()
     )
