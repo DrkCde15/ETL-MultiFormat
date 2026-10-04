@@ -56,12 +56,19 @@ forçar tudo pelo Kaggle:
 
 Fetch (implementado):
 
-- `scripts/fetch_json.py [--start dd/mm/aaaa --end dd/mm/aaaa]`
+- `scripts/fetch_json.py [--start dd/mm/aaaa --end dd/mm/aaaa] [--full]`
   → `data/raw/json/bcb_ptax_usd.json` via **stdlib** (urllib): endpoint
   OData `CotacaoDolarPeriodo` (datas dd/mm/yyyy da API pública viram
   MM-DD-YYYY), envelope `{"value": [...]}` validado como lista não vazia
-  antes de gravar o payload cru. Sem datas, janela padrão de 90 dias.
-  Testado ao vivo (1.446 registros para 2021→2026).
+  antes de gravar. **Incremental por padrão**: sem datas, busca de
+  (última cotação + 1 dia) até hoje e mescla deduplicando por
+  `dataHoraCotacao` — a série nunca encolhe (bug de overwrite corrigido
+  em 04/10/2026, quando uma run de 90 dias rebaixou 1.446 → 64
+  registros); arquivo ausente (clone novo) cai na janela de 90 dias;
+  janela sem registros novos mantém o arquivo como está (fim de semana
+  não é erro). `--full` regrava a janela pedida sem mesclar. Resposta
+  vazia sem histórico, HTTP ou JSON inválido continuam `FetchError`
+  (fail-fast). Testado ao vivo (1.446 registros para 2021→2026).
 - `scripts/fetch_kaggle.py [--slug owner/nome]` → **kaggle-api oficial**
   (>=2.2): credenciais checadas antes do import (`.env` carregado),
   `dataset_download_files(..., unzip=True)` em `data/raw/csv/`. Auth:
@@ -153,7 +160,10 @@ de arquivos (bem como os testes) nunca depende do banco.
   de DSN/executor.
 - **Fail-fast na fonte** (decisão explícita): se a API do BCB estiver
   indisponível, `extract` falha e a run fica vermelha (retry único) —
-  sem fallback silencioso para snapshot antigo. Valeu na prática:
+  sem fallback silencioso para snapshot antigo. No modo incremental,
+  só a resposta vazia *sem histórico* local é erro; janela sem registros
+  novos (fim de semana/feriado) mantém o arquivo e segue para
+  `transform`. Valeu na prática:
   em 03/10/2026 o BCB removeu `api.bcb.gov.br` do DNS (NXDOMAIN
   confirmado no servidor autoritativo) e a DAG sinalizou exatamente
   assim. A fonte foi migrada para a PTAX no `olinda.bcb.gov.br` (mesmo

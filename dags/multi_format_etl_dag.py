@@ -1,7 +1,9 @@
 """Orquestração: pipeline multi-format-etl no Airflow (Etapa 3).
 
 Tarefas são os scripts já existentes (sem retrabalho): `extract` baixa a
-PTAX (BCB) mantendo a série fresca, `transform` reprocessa as quatro
+PTAX (BCB) de forma incremental — busca do dia seguinte à última cotação
+e mescla deduplicando, então a série nunca encolhe; `transform`
+reprocessa as quatro
 camadas via run_load e `load` faz o full refresh das tabelas gold via
 load_postgres (sai com 0 se o DATABASE_URL não estiver setado — o
 arquivo nunca depende do banco).

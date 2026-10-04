@@ -26,13 +26,16 @@ badge de build e avisos de configuração — achados A4/A5/A6 do
 
 **Etapa 3 (orquestração) concluída:** DAG do **Airflow 2.6**
 (`dags/multi_format_etl_dag.py`) encadeia `extract → transform →
-load` (fetch PTAX → run_load → load_postgres) diariamente às 06:00
+load` (fetch PTAX **incremental** — busca só o dia seguinte à última
+cotação e mescla, a série nunca encolhe → run_load → load_postgres)
+diariamente às 06:00
 (UTC), em container próprio
 (`Dockerfile.airflow` + serviço `airflow` no compose) com UI local em
 `localhost:8080` (admin/admin) — metadados no Postgres (banco `airflow`)
 + LocalExecutor. Falha da fonte BCB é **fail-fast por decisão
 explícita**: run fica vermelha (retry único) em vez de seguir com
-snapshot velho.
+snapshot velho (janela sem registros novos, tipo fim de semana,
+mantém o arquivo e não é erro).
 
 ## Problema
 
@@ -73,7 +76,7 @@ Futuro: Pandera/Great Expectations, PySpark/Databricks sobre a gold.
 | Formato | Origem | Volume | Licença/acesso |
 |---|---|---|---|
 | CSV | Kaggle `pradeepkumar2424/usa-banking-transactions-dataset-2023-2024` | 5.389 × 20 | CC0 |
-| JSON | API pública **BCB PTAX** (`olinda.bcb.gov.br` — USD/BRL compra/venda, janela de `--start 01/01/2021`) | 1.446 × 3 | API aberta, sem credencial |
+| JSON | API pública **BCB PTAX** (`olinda.bcb.gov.br` — USD/BRL compra/venda, bootstrap `--start 01/01/2021` + fetch incremental diário) | 1.446 × 3 | API aberta, sem credencial |
 | XML | fixture sintética (legado fictício) | 3 clientes | versionada no repo |
 | LOG | fixture sintética (formato `ts\|k=v` da própria aplicação) | 4 eventos | versionada no repo |
 
