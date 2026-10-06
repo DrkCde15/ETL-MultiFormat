@@ -42,11 +42,19 @@ services:
       AIRFLOW__CORE__DEFAULT_TIMEZONE: "utc"
       AIRFLOW_UID: "${AIRFLOW_UID:-1000}"
       DATABASE_URL: "postgresql://etl:etl@db:5432/multi_format_etl"
+      PYTHONPATH: "/opt/monitoring/src"
+      # Observabilidade (pipeline-monitoring, ver dags/monitoring_callbacks.py):
+      # callbacks registram uma run por task (dag_id.task_id) neste SQLite.
+      # MIN_ROWS_EXPECTED=0 porque callbacks não reportam linhas (só scripts
+      # instrumentados com monitored_run reportam volume).
+      DATABASE_PATH: "/opt/airflow/project/data/monitoring.db"
+      MIN_ROWS_EXPECTED: "0"
     user: "${AIRFLOW_UID:-1000}:0"
     ports:
       - "8080:8080"
     volumes:
       - ./:/opt/airflow/project
+      - ../pipeline-monitoring/src:/opt/monitoring/src:ro
     command: >
       bash -c "rm -f /opt/airflow/project/.airflow/*.pid
       && airflow db upgrade

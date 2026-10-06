@@ -20,10 +20,22 @@ from airflow.operators.bash import BashOperator
 
 PROJECT = "/opt/airflow/project"
 
+try:
+    # dags/ está no sys.path do scheduler; sem monitoring, vira no-op.
+    from monitoring_callbacks import on_task_failure, on_task_success
+
+    _MONITORING_CALLBACKS = {
+        "on_success_callback": on_task_success,
+        "on_failure_callback": on_task_failure,
+    }
+except ImportError:
+    _MONITORING_CALLBACKS = {}
+
 default_args = {
     "owner": "etl",
     "retries": 1,
     "retry_delay": timedelta(minutes=10),
+    **_MONITORING_CALLBACKS,
 }
 
 with DAG(
